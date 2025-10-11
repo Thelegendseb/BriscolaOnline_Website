@@ -28,20 +28,21 @@ import {
   NotificationType
 } from '@/components/Notification';
 
+// ===== COLOR THEME =====
 const COLORS = {
-  primary: "#1a4d2e", // Deep forest green (table felt)
-  secondary: "#2d6a4f", // Medium green
-  accent: "#c9a961", // Warm gold
-  background: "#0f2818", // Very dark green
-  surface: "rgba(45, 106, 79, 0.3)", // Translucent green
-  text: "#f5f1e8", // Warm cream
-  textSecondary: "#d4c5a9", // Muted cream
-  error: "#d4534f", // Muted red
-  success: "#6ba368", // Muted green
-  cardBg: "#FFFFFF", // White for cards
-  cardBorder: "#2C3E50", // Dark border for cards
-  glassBg: "rgba(26, 77, 46, 0.4)", // Glass effect with primary color
-} as const
+  primary: '#2C5F41',      // Deep green
+  secondary: '#4A7A5C',    // Medium green
+  accent: '#FFD700',       // Gold
+  background: '#1A3A2E',   // Dark green
+  surface: '#3E6B5A',      // Light green
+  text: '#FFFFFF',         // White
+  textSecondary: '#E8F5E8', // Light green text
+  error: '#FF6B6B',        // Red
+  success: '#51CF66',      // Light green
+  cardBg: '#FFFFFF',       // White for cards
+  cardBorder: '#2C3E50',   // Dark border for cards
+  glassBg: 'rgba(255, 255, 255, 0.1)', // Glass effect
+} as const;
 
 // ===== TYPE DEFINITIONS =====
 interface PlayedCardData {
@@ -905,6 +906,7 @@ export default function Home() {
   return <GameApp />;
 }
 
+// ===== ANIMATIONS =====
 const slideUp = keyframes`
   0% {
     opacity: 1;
@@ -933,7 +935,7 @@ const slideUp = keyframes`
     opacity: 1;
     animation-timing-function: ease-out;
   }
-`
+`;
 
 const shuffle = keyframes`
   0% { transform: rotate(0deg) scale(1); }
@@ -941,23 +943,24 @@ const shuffle = keyframes`
   50% { transform: rotate(-5deg) scale(0.9); }
   75% { transform: rotate(3deg) scale(1.1); }
   100% { transform: rotate(0deg) scale(1); }
-`
+`;
 
 const pulse = keyframes`
   0% { opacity: 1; }
   50% { opacity: 0.5; }
   100% { opacity: 1; }
-`
+`;
 
 // ===== STYLED COMPONENTS =====
 const GlobalStyle = createGlobalStyle`
   body {
-    background: radial-gradient(ellipse at center, #1a4d2e 0%, #0f2818 100%);
+    background-color: ${COLORS.background};
     color: ${COLORS.text};
     margin: 0;
     padding: 0;
     overflow: hidden;
     user-select: none;
+    font-family: 'Arial', sans-serif;
     height: 100vh;
     width: 100vw;
   }
@@ -966,7 +969,7 @@ const GlobalStyle = createGlobalStyle`
     height: 100vh;
     width: 100vw;
   }
-`
+`;
 
 const GameContainer = styled.div`
   position: fixed;
@@ -976,16 +979,16 @@ const GameContainer = styled.div`
   right: 0;
   height: 100vh;
   width: 100vw;
-  background: radial-gradient(ellipse at center, #1a4d2e 0%, #0f2818 100%);
+  background-color: ${COLORS.background};
   
   /* Desktop Layout - Dashboard Style */
   display: grid;
   grid-template-areas: 
     "players play-area trump";
-  grid-template-columns: 280px 1fr 280px;
+  grid-template-columns: 250px 1fr 250px;
   grid-template-rows: 1fr;
-  gap: 1.5rem;
-  padding: 1.5rem;
+  gap: 1rem;
+  padding: 1rem;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
     /* Mobile Layout - Header + Play Area */
@@ -997,7 +1000,7 @@ const GameContainer = styled.div`
     gap: 0;
     padding: 0;
   }
-`
+`;
 
 const LoadingScreen = styled.div`
   display: flex;
@@ -1005,14 +1008,13 @@ const LoadingScreen = styled.div`
   align-items: center;
   height: 100vh;
   width: 100vw;
-  background: radial-gradient(ellipse at center, #1a4d2e 0%, #0f2818 100%);
+  background-color: ${COLORS.background};
   color: ${COLORS.text};
   font-size: 1.5rem;
   position: fixed;
   top: 0;
   left: 0;
-  
-`
+`;
 
 /* ===== DECK STACK COMPONENTS ===== */
 const DeckStackContainer = styled.div`
@@ -1028,21 +1030,21 @@ const DeckStackContainer = styled.div`
     width: 40px;
     height: 55px;
   }
-`
+`;
 
 const DeckCard = styled.div<{ $zIndex: number; $rotation: number; $offset: number }>`
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(${(props) => props.$rotation}deg) translate(${(props) => props.$offset}px, ${(props) => props.$offset}px);
-  z-index: ${(props) => props.$zIndex};
+  transform: translate(-50%, -50%) rotate(${props => props.$rotation}deg) translate(${props => props.$offset}px, ${props => props.$offset}px);
+  z-index: ${props => props.$zIndex};
   transition: all 0.2s ease;
-`
+`;
 
 /* ===== OPPONENT HAND COMPONENTS ===== */
 const OpponentHandsContainer = styled.div<{ $playerCount: number }>`
   position: absolute;
-  top: 2rem;
+  top: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1050,9 +1052,7 @@ const OpponentHandsContainer = styled.div<{ $playerCount: number }>`
   z-index: 50;
   
   /* For 3 players, arrange them in a row */
-  ${(props) =>
-    props.$playerCount === 3 &&
-    `
+  ${props => props.$playerCount === 3 && `
     justify-content: center;
     max-width: 90%;
     flex-wrap: wrap;
@@ -1061,38 +1061,35 @@ const OpponentHandsContainer = styled.div<{ $playerCount: number }>`
   @media (max-width: ${MOBILE_BREAKPOINT}) {
     top: 1rem;
     gap: 1rem;
-    flex-direction: ${(props) => (props.$playerCount === 3 ? "row" : "column")};
+    flex-direction: ${props => props.$playerCount === 3 ? 'row' : 'column'};
     align-items: center;
     
-    ${(props) =>
-      props.$playerCount === 3 &&
-      `
+    ${props => props.$playerCount === 3 && `
       flex-wrap: wrap;
       justify-content: center;
     `}
   }
-`
+`;
 
 const OpponentHandContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: ${COLORS.glassBg};
+  background-color: ${COLORS.glassBg};
   border-radius: 1rem;
-  padding: 1.25rem;
-  backdrop-filter: blur(12px);
-  border: 2px solid rgba(201, 169, 97, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  min-width: 200px;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid ${COLORS.surface};
+  min-width: 180px;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    min-width: 150px;
-    padding: 0.75rem;
+    min-width: 140px;
+    padding: 0.5rem;
     flex-direction: row;
-    gap: 0.75rem;
+    gap: 0.5rem;
     justify-content: space-between;
   }
-`
+`;
 
 const OpponentInfo = styled.div`
   display: flex;
@@ -1106,7 +1103,7 @@ const OpponentInfo = styled.div`
     flex-direction: row;
     gap: 0.5rem;
   }
-`
+`;
 
 const OpponentCards = styled.div`
   display: flex;
@@ -1118,47 +1115,45 @@ const OpponentCards = styled.div`
     gap: -4px;
     margin-bottom: 0;
   }
-`
+`;
 
 const OpponentCard = styled.div<{ $index: number; $rotation: number }>`
   position: relative;
-  z-index: ${(props) => props.$index};
-  transform: rotate(${(props) => props.$rotation}deg) translateX(${(props) => props.$index * -6}px);
+  z-index: ${props => props.$index};
+  transform: rotate(${props => props.$rotation}deg) translateX(${props => props.$index * -6}px);
   transition: all 0.2s ease;
 
   &:hover {
-    transform: rotate(${(props) => props.$rotation}deg) translateX(${(props) => props.$index * -6}px) translateY(-3px);
+    transform: rotate(${props => props.$rotation}deg) translateX(${props => props.$index * -6}px) translateY(-3px);
   }
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    transform: rotate(${(props) => props.$rotation}deg) translateX(${(props) => props.$index * -4}px);
+    transform: rotate(${props => props.$rotation}deg) translateX(${props => props.$index * -4}px);
     
     &:hover {
-      transform: rotate(${(props) => props.$rotation}deg) translateX(${(props) => props.$index * -4}px) translateY(-2px);
+      transform: rotate(${props => props.$rotation}deg) translateX(${props => props.$index * -4}px) translateY(-2px);
     }
   }
-`
+`;
 
 const PlayerDetails = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   flex: 1;
-`
+`;
 
 const StackCount = styled.span`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: ${COLORS.textSecondary};
   font-weight: 400;
-  font-style: italic;
-`
+`;
 
 const CardCount = styled.span`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: ${COLORS.textSecondary};
   font-weight: 500;
-  font-style: italic;
-`
+`;
 
 /* ===== MOBILE COMPONENTS ===== */
 const MobileHeader = styled.div`
@@ -1167,17 +1162,17 @@ const MobileHeader = styled.div`
   @media (max-width: ${MOBILE_BREAKPOINT}) {
     display: flex;
     grid-area: header;
-    background: ${COLORS.glassBg};
-    border-radius: 0 0 1.5rem 1.5rem;
+    background: linear-gradient(135deg, ${COLORS.glassBg}, rgba(255, 255, 255, 0.05));
+    border-radius: 1rem;
+    margin: 0.5rem;
     padding: 1rem;
     gap: 1rem;
-    backdrop-filter: blur(12px);
-    border: 2px solid rgba(201, 169, 97, 0.3);
-    border-top: none;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 2px solid ${COLORS.surface};
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     overflow-x: auto;
   }
-`
+`;
 
 const MobilePlayerSection = styled.div`
   display: flex;
@@ -1185,7 +1180,7 @@ const MobilePlayerSection = styled.div`
   align-items: center;
   flex: 2;
   min-width: 0;
-`
+`;
 
 const MobileStackCount = styled.span`
   font-size: 0.7rem;
@@ -1197,8 +1192,7 @@ const MobileStackCount = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  font-style: italic;
-`
+`;
 
 const MobileDeckSection = styled.div`
   display: flex;
@@ -1207,7 +1201,7 @@ const MobileDeckSection = styled.div`
   flex: 1;
   min-width: 80px;
   gap: 0.25rem;
-`
+`;
 
 const MobileTrumpSection = styled.div`
   display: flex;
@@ -1215,136 +1209,115 @@ const MobileTrumpSection = styled.div`
   align-items: center;
   flex: 1;
   min-width: 80px;
-`
+`;
 
 const MobileSectionTitle = styled.h4`
-  margin: 0 0 0.75rem 0;
-  font-size: 0.85rem;
-  color: ${COLORS.accent};
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: ${COLORS.textSecondary};
   text-align: center;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  
-`
+  letter-spacing: 0.5px;
+`;
 
 const MobilePlayerList = styled.div`
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
   overflow-x: auto;
   width: 100%;
   padding: 0.25rem;
   
   &::-webkit-scrollbar {
-    height: 4px;
+    height: 3px;
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba(201, 169, 97, 0.1);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
   }
   
   &::-webkit-scrollbar-thumb {
     background: ${COLORS.accent};
-    border-radius: 4px;
+    border-radius: 3px;
   }
-`
+`;
 
 const MobilePlayerItem = styled.div<{ $isCurrentTurn: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  min-width: 70px;
-  background: ${(props) => (props.$isCurrentTurn ? "rgba(201, 169, 97, 0.2)" : "rgba(45, 106, 79, 0.2)")};
-  border: ${(props) => (props.$isCurrentTurn ? `2px solid ${COLORS.accent}` : "2px solid rgba(201, 169, 97, 0.2)")};
-  transition: all 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  min-width: 60px;
+  background-color: ${props => props.$isCurrentTurn ? COLORS.surface : 'rgba(255, 255, 255, 0.05)'};
+  border: ${props => props.$isCurrentTurn ? `2px solid ${COLORS.accent}` : '2px solid transparent'};
+  transition: all 0.2s ease;
   position: relative;
-  box-shadow: ${(props) => (props.$isCurrentTurn ? "0 4px 12px rgba(201, 169, 97, 0.3)" : "none")};
 
   &:hover {
-    background: ${(props) => (props.$isCurrentTurn ? "rgba(201, 169, 97, 0.25)" : "rgba(45, 106, 79, 0.3)")};
+    background-color: ${props => props.$isCurrentTurn ? COLORS.surface : 'rgba(255, 255, 255, 0.1)'};
   }
-`
+`;
 
 const MobilePlayerName = styled.span`
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 500;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  color: ${COLORS.text};
-`
+`;
 
 const DeckCount = styled.span`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: ${COLORS.textSecondary};
-  margin-top: 0.5rem;
+  margin-top: 1.5rem;
   text-align: center;
   display: block;
   width: 100%;
-  font-weight: 500;
-`
+`;
 
 const TrumpSuitInfo = styled.div`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: ${COLORS.accent};
-  font-weight: 600;
-  margin-top: 0.5rem;
+  font-weight: bold;
+  margin-top: 0.25rem;
   text-align: center;
-  
-`
+`;
 
 const EmptyTrumpMessage = styled.div`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: ${COLORS.textSecondary};
   text-align: center;
   padding: 1rem 0;
   font-style: italic;
-`
+`;
 
 const DesktopPlayerListContainer = styled.div`
   grid-area: players;
-  background: ${COLORS.glassBg};
-  border-radius: 1.5rem;
+  background-color: ${COLORS.glassBg};
+  border-radius: 1rem;
   padding: 1.5rem;
-  backdrop-filter: blur(12px);
-  border: 2px solid rgba(201, 169, 97, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 2px solid ${COLORS.primary};
   height: 100%;
   overflow-y: auto;
-  
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(201, 169, 97, 0.1);
-    border-radius: 6px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: ${COLORS.accent};
-    border-radius: 6px;
-  }
   
   @media (max-width: ${MOBILE_BREAKPOINT}) {
     display: none;
   }
-`
+`;
 
 const DesktopTrumpContainer = styled.div`
   grid-area: trump;
-  background: ${COLORS.glassBg};
-  border-radius: 1.5rem;
+  background-color: ${COLORS.glassBg};
+  border-radius: 1rem;
   padding: 1.5rem;
-  backdrop-filter: blur(12px);
-  border: 2px solid rgba(201, 169, 97, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 2px solid ${COLORS.accent};
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1353,7 +1326,7 @@ const DesktopTrumpContainer = styled.div`
   @media (max-width: ${MOBILE_BREAKPOINT}) {
     display: none;
   }
-`
+`;
 
 const PlayerListContainer = styled.div`
   grid-area: players;
@@ -1376,95 +1349,83 @@ const PlayerListContainer = styled.div`
     font-size: 0.9rem;
     padding: 0.75rem;
   }
-`
+`;
 
 const PlayerListTitle = styled.h3`
-  margin: 0 0 1.5rem 0;
-  font-size: 1.3rem;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
   text-align: center;
-  color: ${COLORS.accent};
-  
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  color: ${COLORS.textSecondary};
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 1.1rem;
-    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    margin: 0 0 0.5rem 0;
   }
-`
+`;
 
 const PlayerItem = styled.div<{ $isCurrentTurn: boolean }>`
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  margin-bottom: 0.75rem;
-  background: ${(props) => (props.$isCurrentTurn ? "rgba(201, 169, 97, 0.2)" : "rgba(45, 106, 79, 0.1)")};
-  border: ${(props) => (props.$isCurrentTurn ? `2px solid ${COLORS.accent}` : "2px solid transparent")};
-  transition: all 0.3s ease;
-  box-shadow: ${(props) => (props.$isCurrentTurn ? "0 4px 12px rgba(201, 169, 97, 0.3)" : "none")};
-
-  &:hover {
-    background: ${(props) => (props.$isCurrentTurn ? "rgba(201, 169, 97, 0.25)" : "rgba(45, 106, 79, 0.2)")};
-  }
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: ${props => props.$isCurrentTurn ? COLORS.surface : 'transparent'};
+  border: ${props => props.$isCurrentTurn ? `2px solid ${COLORS.accent}` : '2px solid transparent'};
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    gap: 0.75rem;
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    margin-bottom: 0.25rem;
   }
-`
+`;
 
 const PlayerAvatar = styled.img`
-  width: 3rem;
-  height: 3rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid ${COLORS.accent};
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2rem;
+    height: 2rem;
+    border-width: 1px;
   }
-`
+`;
 
 const PlayerName = styled.span`
   flex: 1;
-  font-weight: 600;
-  color: ${COLORS.text};
-  font-size: 1rem;
+  font-weight: 500;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
-`
+`;
 
 const TurnIndicator = styled.span`
   color: ${COLORS.accent};
   font-size: 1.5rem;
   animation: pulse 1.5s infinite;
-  filter: drop-shadow(0 0 8px ${COLORS.accent});
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 1rem;
+    font-size: 0.8rem;
     position: absolute;
     top: -5px;
     right: -5px;
-    background: ${COLORS.accent};
-    color: ${COLORS.background};
+    background-color: ${COLORS.accent};
+    color: ${COLORS.primary};
     border-radius: 50%;
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
     border: 2px solid ${COLORS.background};
-    box-shadow: 0 2px 8px rgba(201, 169, 97, 0.5);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
-`
+`;
 
 const TrumpContainer = styled.div`
   grid-area: trump;
@@ -1486,32 +1447,29 @@ const TrumpContainer = styled.div`
     padding: 0.5rem;
     z-index: 100;
   }
-`
+`;
 
 const TrumpTitle = styled.h3`
   margin: 0 0 2rem 0;
-  font-size: 1.3rem;
-  color: ${COLORS.accent};
-  
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-size: 1.2rem;
+  color: ${COLORS.textSecondary};
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     margin: 0 0 1rem 0;
   }
-`
+`;
 
 const TrumpCardArea = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    gap: 1rem;
+    gap: 0.5rem;
   }
-`
+`;
 
 const DeckIndicator = styled.div`
   display: flex;
@@ -1523,39 +1481,38 @@ const DeckIndicator = styled.div`
   @media (max-width: ${MOBILE_BREAKPOINT}) {
     gap: 0.25rem;
   }
-`
+`;
 
 const TrumpInfo = styled.div`
-  margin-top: 1.5rem;
-  font-weight: 600;
+  margin-top: 1rem;
+  font-weight: bold;
   color: ${COLORS.accent};
   text-align: center;
-  line-height: 1.6;
-  
+  line-height: 1.4;
   
   div:first-child {
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
   }
   
   div:last-child {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: ${COLORS.textSecondary};
   }
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     
     div:first-child {
-      font-size: 0.9rem;
-      margin-bottom: 0.25rem;
+      font-size: 0.7rem;
+      margin-bottom: 0.1rem;
     }
     
     div:last-child {
-      font-size: 0.75rem;
+      font-size: 0.6rem;
     }
   }
-`
+`;
 
 const fadeInOut = keyframes`
   0% { 
@@ -1574,7 +1531,7 @@ const fadeInOut = keyframes`
     opacity: 0; 
     transform: translate(-50%, -50%) scale(0.8); 
   }
-`
+`;
 
 const FinalRoundsIndicator = styled.div`
   position: absolute;
@@ -1584,40 +1541,36 @@ const FinalRoundsIndicator = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: ${COLORS.glassBg};
-  border-radius: 1.5rem;
-  padding: 2rem;
-  backdrop-filter: blur(12px);
-  border: 3px solid ${COLORS.error};
+  background-color: ${COLORS.glassBg};
+  border-radius: 1rem;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid ${COLORS.error};
   z-index: 10;
   animation: ${fadeInOut} 3s ease-in-out;
-  box-shadow: 0 8px 32px rgba(212, 83, 79, 0.4);
-`
+`;
 
 const FinalRoundsText = styled.span`
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   color: ${COLORS.error};
   font-weight: bold;
   text-align: center;
-  margin-bottom: 0.75rem;
-  
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 0.5rem;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
-`
+`;
 
 const FinalRoundsSubtext = styled.span`
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: ${COLORS.textSecondary};
   text-align: center;
-  
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
-`
+`;
 
 const PlayAreaContainer = styled.div`
   grid-area: play-area;
@@ -1625,24 +1578,20 @@ const PlayAreaContainer = styled.div`
   align-items: center;
   justify-content: center;
   position: relative;
-  background: radial-gradient(ellipse at center, rgba(26, 77, 46, 0.6) 0%, rgba(15, 40, 24, 0.8) 100%);
-  border-radius: 1.5rem;
-  border: 3px solid rgba(201, 169, 97, 0.4);
-  box-shadow: inset 0 4px 24px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.3);
+  background-color: ${COLORS.glassBg};
+  border-radius: 1rem;
+  border: 1px solid ${COLORS.surface};
   height: 100%;
   width: 100%;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
     margin-top: 0;
-    border-radius: 0;
-    border: none;
-    border-top: 3px solid rgba(201, 169, 97, 0.4);
   }
-`
+`;
 
 const PlayedCardsContainer = styled.div`
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   align-items: center;
   justify-content: center;
   position: absolute;
@@ -1652,69 +1601,53 @@ const PlayedCardsContainer = styled.div`
   z-index: 10;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    gap: 1rem;
+    gap: 0.5rem;
     flex-wrap: wrap;
   }
-`
+`;
 
 const PlayedCardContainer = styled.div`
   animation: ${slideUp} 2s linear;
   position: relative;
-`
+`;
 
 const ShufflingIndicator = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   animation: ${shuffle} 1s infinite;
-  background: ${COLORS.glassBg};
-  padding: 2rem;
-  border-radius: 1.5rem;
-  backdrop-filter: blur(12px);
-  border: 2px solid ${COLORS.accent};
-  box-shadow: 0 8px 32px rgba(201, 169, 97, 0.3);
-`
+`;
 
 const ShufflingText = styled.span`
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   color: ${COLORS.accent};
   font-weight: bold;
-  
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
   }
-`
+`;
 
 const ResolvingIndicator = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   animation: ${pulse} 1s infinite;
-  background: ${COLORS.glassBg};
-  padding: 2rem;
-  border-radius: 1.5rem;
-  backdrop-filter: blur(12px);
-  border: 2px solid ${COLORS.success};
-  box-shadow: 0 8px 32px rgba(107, 163, 104, 0.3);
-`
+`;
 
 const ResolvingText = styled.span`
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   color: ${COLORS.success};
   font-weight: bold;
-  
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
-`
+`;
 
 const HandContainer = styled.div`
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 1rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1722,24 +1655,23 @@ const HandContainer = styled.div`
   align-items: center;
   gap: 1rem;
   z-index: 200;
-  background: ${COLORS.glassBg};
-  padding: 1.25rem;
-  border-radius: 1.5rem;
-  backdrop-filter: blur(12px);
-  border: 2px solid rgba(201, 169, 97, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  background-color: ${COLORS.glassBg};
+  padding: 1rem;
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid ${COLORS.surface};
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    bottom: 0.75rem;
-    gap: 0.75rem;
-    padding: 1rem;
+    bottom: 0.5rem;
+    gap: 0.5rem;
+    padding: 0.5rem;
     left: 1rem;
     right: 1rem;
     transform: none;
     max-width: none;
     width: calc(100vw - 2rem);
   }
-`
+`;
 
 const HandCards = styled.div`
   display: flex;
@@ -1747,126 +1679,113 @@ const HandCards = styled.div`
   gap: 1rem;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
-`
+`;
 
 const PlayerStackContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-`
+`;
 
 const StackTitle = styled.h4`
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: ${COLORS.textSecondary};
   text-align: center;
-  
-  font-weight: 600;
-  font-style: italic;
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
-`
+`;
 
 /* ===== NEW STYLED COMPONENTS ===== */
 const MobileFinalScore = styled.span<{ $isWinner: boolean }>`
-  font-size: 0.75rem;
-  color: ${(props) => (props.$isWinner ? COLORS.accent : COLORS.textSecondary)};
-  font-weight: ${(props) => (props.$isWinner ? "bold" : "600")};
+  font-size: 0.7rem;
+  color: ${props => props.$isWinner ? COLORS.accent : COLORS.textSecondary};
+  font-weight: ${props => props.$isWinner ? 'bold' : '500'};
   margin-top: 0.25rem;
   text-align: center;
-  
-`
+`;
 
 const WinnerCrown = styled.span`
   position: absolute;
-  top: -10px;
-  right: -10px;
-  font-size: 1.5rem;
+  top: -8px;
+  right: -8px;
+  font-size: 1.2rem;
   z-index: 10;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-`
+`;
 
 const GameOverDisplay = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: ${COLORS.glassBg};
-  border-radius: 1.5rem;
-  padding: 2.5rem;
-  backdrop-filter: blur(12px);
-  border: 3px solid ${COLORS.accent};
-  box-shadow: 0 8px 32px rgba(201, 169, 97, 0.4);
-  max-width: 450px;
+  background-color: ${COLORS.glassBg};
+  border-radius: 1rem;
+  padding: 2rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid ${COLORS.accent};
+  max-width: 400px;
   
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    padding: 1.5rem;
-    max-width: 320px;
+    padding: 1rem;
+    max-width: 300px;
   }
-`
+`;
 
 const GameOverTitle = styled.h2`
-  margin: 0 0 2rem 0;
-  font-size: 2.5rem;
+  margin: 0 0 1.5rem 0;
+  font-size: 2rem;
   color: ${COLORS.accent};
   text-align: center;
   
-  font-weight: bold;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 2rem;
-    margin: 0 0 1.5rem 0;
+    font-size: 1.5rem;
+    margin: 0 0 1rem 0;
   }
-`
+`;
 
 const FinalScoresContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-`
+`;
 
 const FinalScoreItem = styled.div<{ $isWinner: boolean }>`
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  border-radius: 0.75rem;
-  background: ${(props) => (props.$isWinner ? "rgba(201, 169, 97, 0.3)" : "rgba(45, 106, 79, 0.2)")};
-  border: ${(props) => (props.$isWinner ? `3px solid ${COLORS.accent}` : "2px solid rgba(201, 169, 97, 0.2)")};
+  border-radius: 0.5rem;
+  background-color: ${props => props.$isWinner ? COLORS.surface : 'rgba(255, 255, 255, 0.05)'};
+  border: ${props => props.$isWinner ? `2px solid ${COLORS.accent}` : '2px solid transparent'};
   position: relative;
-  transition: all 0.3s ease;
-  box-shadow: ${(props) => (props.$isWinner ? "0 4px 16px rgba(201, 169, 97, 0.4)" : "none")};
-`
+`;
 
 const FinalScoreDetails = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
-`
+`;
 
 const FinalScore = styled.span`
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: bold;
   color: ${COLORS.accent};
-  
-`
+`;
 
 const GameOverMessage = styled.div`
   color: ${COLORS.accent};
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   text-align: center;
   padding: 2rem;
   font-weight: bold;
-  
 
   @media (max-width: ${MOBILE_BREAKPOINT}) {
-    font-size: 1.1rem;
-    padding: 1.5rem;
+    font-size: 1rem;
+    padding: 1rem;
   }
-`
+`;
