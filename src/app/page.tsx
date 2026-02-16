@@ -17,6 +17,7 @@ import { GameState, BaseGameLogic } from '@/game/BaseGameLogic';
 import { selectGameMode, createGameLogic, GameMode } from '@/game/GameModeSelector';
 import { detectDevice, DeviceType } from '@/utils/deviceDetection';
 import { DesktopGameUI } from '@/components/DesktopGameUI';
+import { MobileGameUI } from '@/components/MobileGameUI';
 
 // ===== MAIN GAME COMPONENT =====
 const GameApp: React.FC = () => {
@@ -167,9 +168,17 @@ const GameApp: React.FC = () => {
     );
   }
 
-  // Mobile UI (to be implemented)
+  // Mobile & Tablet UI
   return (
-    <LoadingScreen>Mobile view coming soon...</LoadingScreen>
+    <div style={{ background: 'black', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      <GlobalStyle />
+      <MobileGameUI
+        gameState={gameState}
+        players={players}
+        currentPlayerId={currentPlayer.id}
+        onCardPlay={handleCardPlay}
+      />
+    </div>
   );
 };
 

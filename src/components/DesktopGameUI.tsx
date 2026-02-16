@@ -1,89 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import styled, { keyframes, css } from 'styled-components';
-import { Card as CardType, Suit, CardComponent } from '@/components/Card';
-import { GameState } from '@/game/BaseGameLogic';
+import styled, { css } from 'styled-components';
+import { CardComponent } from '@/components/Card';
 import { PlayerState } from 'playroomkit';
 import packageJson from '../../package.json';
-
-// ===== DESIGN SYSTEM =====
-const DESIGN = {
-  colors: {
-    bg: {
-      primary: '#111111',
-      secondary: '#1a1a1a',
-      tertiary: '#2a2a2a',
-    },
-    surfaces: {
-      cards: '#ffffff',
-      containers: '#1f1f1f',
-      elevated: '#2d2d2d',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: '#a0a0a0',
-      tertiary: '#606060',
-    },
-    accents: {
-      green: '#00ff88',
-      cyan: '#00d4ff',
-      pink: '#ff6b9d',
-    },
-  },
-  radius: {
-    cards: '12px',
-    containers: '16px',
-    buttons: '12px',
-  },
-  spacing: {
-    xxs: '4px',
-    xs: '8px',
-    sm: '12px',
-    md: '16px',
-    lg: '24px',
-    xl: '32px',
-  },
-  typography: {
-    display: { size: '64px', weight: 700 },
-    title: { size: '32px', weight: 600 },
-    subtitle: { size: '24px', weight: 600 },
-    body: { size: '18px', weight: 400 },
-    caption: { size: '14px', weight: 500 },
-    label: { size: '12px', weight: 500 },
-  },
-};
-
-// ===== ANIMATIONS =====
-const pulseBlue = keyframes`
-  0% {
-    box-shadow: 0 0 0 3px ${DESIGN.colors.accents.cyan};
-  }
-  50% {
-    box-shadow: 0 0 0 6px ${DESIGN.colors.accents.cyan};
-  }
-  100% {
-    box-shadow: 0 0 0 3px ${DESIGN.colors.accents.cyan};
-  }
-`;
-
-
-const fadeOut = keyframes`
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-`;
-
-const cardColors = {
-  cardBg: DESIGN.colors.surfaces.cards,
-  cardBorder: DESIGN.colors.bg.tertiary,
-  primary: DESIGN.colors.accents.green,
-  secondary: DESIGN.colors.text.secondary,
-  text: DESIGN.colors.text.primary,
-  textSecondary: DESIGN.colors.text.tertiary,
-  surface: DESIGN.colors.surfaces.containers,
-};
+import {
+  DESIGN,
+  pulseBlue,
+  fadeOut,
+  cardColors,
+  GameUIProps,
+  getPlayerInitials,
+  getPlayerName,
+  getPlayerPhoto,
+} from '@/components/shared/gameDesign';
 
 // ===== STYLED COMPONENTS =====
 
@@ -467,16 +396,8 @@ const ScoreRow = styled.div<{ isWinner?: boolean }>`
   }
 `;
 
-// ===== COMPONENT PROPS =====
-interface DesktopGameUIProps {
-  gameState: GameState;
-  players: PlayerState[];
-  currentPlayerId: string;
-  onCardPlay: (card: CardType) => void;
-}
-
 // ===== DESKTOP GAME UI COMPONENT =====
-export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
+export const DesktopGameUI: React.FC<GameUIProps> = ({
   gameState,
   players,
   currentPlayerId,
@@ -509,25 +430,6 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
   }, [gameState.phase, gameState.roundNumber]);
 
   // ===== HELPER FUNCTIONS =====
-  const getPlayerInitials = (playerId: string): string => {
-    const player = players.find(p => p.id === playerId);
-    if (!player) return '?';
-    const profile = player.getProfile();
-    const playerName = profile?.name || 'Player';
-    const names = playerName.split(' ') || ['?'];
-    return names.map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const getPlayerName = (player: PlayerState): string => {
-    const profile = player.getProfile();
-    return profile?.name || 'Player';
-  };
-
-  const getPlayerPhoto = (player: PlayerState): string | undefined => {
-    const profile = player.getProfile();
-    return profile?.photo;
-  };
-
   const getOpponents = () => {
     return players.filter(p => p.id !== currentPlayerId);
   };
@@ -579,7 +481,7 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
                   isActive={isActive}
                   backgroundImage={getPlayerPhoto(player)}
                 >
-                  {!getPlayerPhoto(player) && getPlayerInitials(player.id)}
+                  {!getPlayerPhoto(player) && getPlayerInitials(player.id, players)}
                 </OpponentAvatar>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <OpponentName>{getPlayerName(player)}</OpponentName>
