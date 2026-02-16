@@ -1,6 +1,7 @@
 import { PlayerState } from "playroomkit";
 import {
   Card,
+  CardValue,
   Suit,
   createDeck,
   shuffleDeck,
@@ -155,6 +156,50 @@ export abstract class BaseGameLogic {
    * Only the host calls this after the display timeout.
    */
   abstract resolveRound(): GameState;
+
+  /**
+   * Swap a 7 or 2 of trump suit with the trump card.
+   * 7 can swap major trump cards (King, Knight, Jack, Ace, Three)
+   * 2 can swap minor trump cards (rest)
+   * Can be done any time, not turn-dependent.
+   */
+  swapWithTrump(playerId: string, cardId: string): GameState | null {
+    if (this.state.phase !== 'playing' && this.state.phase !== 'round_complete') return null;
+    if (!this.state.trumpCard || this.state.deck.length === 0) return null;
+
+    const playerHand = this.state.playerHands[playerId];
+    if (!playerHand) return null;
+
+    const cardIndex = playerHand.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) return null;
+
+    const card = playerHand[cardIndex];
+    const trumpCard = this.state.trumpCard;
+
+    // Must be same suit as trump
+    if (card.suit !== trumpCard.suit) return null;
+
+    // Major cards: King, Knight, Jack, Ace (ONE), Three
+    const MAJOR = [CardValue.KING, CardValue.KNIGHT, CardValue.JACK, CardValue.ONE, CardValue.THREE];
+    const isMajorTrump = MAJOR.includes(trumpCard.value);
+
+    // 7 swaps major trump cards, 2 swaps minor trump cards
+    if (card.value === CardValue.SEVEN && !isMajorTrump) return null;
+    if (card.value === CardValue.TWO && isMajorTrump) return null;
+    if (card.value !== CardValue.SEVEN && card.value !== CardValue.TWO) return null;
+
+    // Perform swap: card goes to trump position, trump goes to hand
+    const newHand = [...playerHand];
+    newHand[cardIndex] = trumpCard;
+
+    this.state = {
+      ...this.state,
+      trumpCard: card,
+      playerHands: { ...this.state.playerHands, [playerId]: newHand },
+    };
+
+    return this.getState();
+  }
 
   /**
    * Evaluate round winner from played cards

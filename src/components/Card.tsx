@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
+import ReactDOM from 'react-dom';
 
 // ===== TYPE DEFINITIONS =====
 export enum Suit {
@@ -132,9 +133,72 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   mobileBreakpoint = '768px'
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openTooltip = useCallback(() => {
+    if (!card || isBack) return;
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top });
+    }
+    setShowTooltip(true);
+  }, [card, isBack]);
+
+  const closeTooltip = useCallback(() => {
+    setShowTooltip(false);
+    setTooltipPos(null);
+  }, []);
+
+  // Right-click to show tooltip (desktop)
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (showTooltip) {
+      closeTooltip();
+    } else {
+      openTooltip();
+    }
+  }, [showTooltip, openTooltip, closeTooltip]);
+
+  // Long-press to show tooltip (mobile)
+  const handleTouchStart = useCallback(() => {
+    longPressTimerRef.current = setTimeout(() => {
+      openTooltip();
+    }, 1000);
+  }, [openTooltip]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  // Close tooltip when clicking anywhere else
+  useEffect(() => {
+    if (!showTooltip) return;
+    const handleClose = () => closeTooltip();
+    // Use a timeout so the current event doesn't immediately close it
+    const timer = setTimeout(() => {
+      document.addEventListener('pointerdown', handleClose, { once: true });
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('pointerdown', handleClose);
+    };
+  }, [showTooltip, closeTooltip]);
+
+  // Cleanup long-press timer
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    };
+  }, []);
 
   return (
     <CardWrapper 
+      ref={wrapperRef}
       $disabled={disabled} 
       $transform={transform}
       onClick={disabled ? undefined : onClick}
@@ -143,8 +207,10 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       $fillContainer={fillContainer}
       $colors={colors}
       $mobileBreakpoint={mobileBreakpoint}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onContextMenu={handleContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {showAvatar && avatarSrc && (
         <CardAvatar $mobileBreakpoint={mobileBreakpoint} $size={size}>
@@ -156,12 +222,17 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       ) : card ? (
         <>
           <CardImage src={card.imagePath} alt={card.name} />
-          {showTooltip && !isBack && card && (
-            <Tooltip $colors={colors} $size={size} $mobileBreakpoint={mobileBreakpoint}>
+          {showTooltip && tooltipPos && typeof document !== 'undefined' && ReactDOM.createPortal(
+            <FloatingTooltip
+              $colors={colors}
+              style={{ left: tooltipPos.x, top: tooltipPos.y }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               <TooltipTitle>{card.name}</TooltipTitle>
               <TooltipScore>Score: {card.score} points</TooltipScore>
               <TooltipSuit>Suit: {card.suit.charAt(0).toUpperCase() + card.suit.slice(1)}s</TooltipSuit>
-            </Tooltip>
+            </FloatingTooltip>,
+            document.body
           )}
         </>
       ) : (
@@ -295,38 +366,21 @@ const CardAvatar = styled.div<{ $mobileBreakpoint: string; $size: 'large' | 'nor
   }
 `;
 
-const Tooltip = styled.div<{ $colors: CardComponentProps['colors']; $size: 'large' | 'normal' | 'small' | 'tiny'; $mobileBreakpoint: string }>`
-  position: absolute;
-  top: ${props => {
-    if (props.$size === 'large') return '-85px';
-    if (props.$size === 'tiny') return '-50px';
-    if (props.$size === 'small') return '-60px';
-    return '-70px';
-  }};
-  left: 50%;
-  transform: translateX(-50%);
+const FloatingTooltip = styled.div<{ $colors: CardComponentProps['colors'] }>`
+  position: fixed;
+  transform: translate(-50%, -100%) translateY(-12px);
   background: ${props => props.$colors.surface};
   color: ${props => props.$colors.text};
-  padding: ${props => {
-    if (props.$size === 'large') return '1rem 1.25rem';
-    if (props.$size === 'tiny') return '0.25rem 0.5rem';
-    if (props.$size === 'small') return '0.5rem 0.75rem';
-    return '0.75rem 1rem';
-  }};
+  padding: 0.75rem 1rem;
   border-radius: 0.5rem;
-  font-size: ${props => {
-    if (props.$size === 'large') return '0.9rem';
-    if (props.$size === 'tiny') return '0.6rem';
-    if (props.$size === 'small') return '0.7rem';
-    return '0.8rem';
-  }};
+  font-size: 0.8rem;
   white-space: nowrap;
-  z-index: 1000;
+  z-index: 10000;
   border: 2px solid ${props => props.$colors.primary};
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  animation: fadeIn 0.2s ease forwards;
   pointer-events: none;
+  opacity: 0;
+  animation: floatingTooltipIn 0.2s ease forwards;
 
   &::after {
     content: '';
@@ -338,19 +392,15 @@ const Tooltip = styled.div<{ $colors: CardComponentProps['colors']; $size: 'larg
     border-top-color: ${props => props.$colors.surface};
   }
 
-  @keyframes fadeIn {
+  @keyframes floatingTooltipIn {
     from {
       opacity: 0;
-      transform: translateX(-50%) translateY(-5px);
+      transform: translate(-50%, -100%) translateY(-17px);
     }
     to {
       opacity: 1;
-      transform: translateX(-50%) translateY(0);
+      transform: translate(-50%, -100%) translateY(-12px);
     }
-  }
-
-  @media (max-width: ${props => props.$mobileBreakpoint}) {
-    display: none;
   }
 `;
 

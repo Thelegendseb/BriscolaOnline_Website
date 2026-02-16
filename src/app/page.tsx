@@ -100,6 +100,34 @@ const GameApp: React.FC = () => {
       return "ok";
     });
 
+    // Register RPC handler for trump swaps (can happen any time)
+    RPC.register('swapTrump', async (data: { cardId: string }, caller: any) => {
+      if (!isHost()) return;
+
+      const logic = gameLogicRef.current;
+      const currentState = gameStateRef.current;
+      if (!logic || !currentState) return;
+
+      logic.loadState(currentState);
+      const newState = logic.swapWithTrump(caller.id, data.cardId);
+      if (!newState) return;
+
+      setGameStateRef.current(newState, true);
+      return "ok";
+    });
+
+    // Register RPC handler for play again (host only)
+    RPC.register('playAgain', async (_data: any, _caller: any) => {
+      if (!isHost()) return;
+
+      const logic = gameLogicRef.current;
+      if (!logic) return;
+
+      const newState = logic.initializeGame();
+      setGameStateRef.current(newState, true);
+      return "ok";
+    });
+
     return () => {
       if (resolveTimerRef.current) clearTimeout(resolveTimerRef.current);
     };
@@ -139,6 +167,18 @@ const GameApp: React.FC = () => {
     RPC.call('playCard', { cardId: card.id }, RPC.Mode.HOST);
   }, [currentPlayer, gameState, players, showNotification]);
 
+  // Handle trump swap from UI — sends RPC to host
+  const handleSwapTrump = useCallback((card: Card) => {
+    if (!currentPlayer || !gameState) return;
+    RPC.call('swapTrump', { cardId: card.id }, RPC.Mode.HOST);
+  }, [currentPlayer, gameState]);
+
+  // Handle play again — host restarts the game
+  const handlePlayAgain = useCallback(() => {
+    if (!amHost) return;
+    RPC.call('playAgain', {}, RPC.Mode.HOST);
+  }, [amHost]);
+
   // Handle player join/quit
   useEffect(() => {
     const unsubscribe = onPlayerJoin((playerState: any) => {
@@ -163,6 +203,9 @@ const GameApp: React.FC = () => {
           players={players}
           currentPlayerId={currentPlayer.id}
           onCardPlay={handleCardPlay}
+          onSwapTrump={handleSwapTrump}
+          onPlayAgain={handlePlayAgain}
+          isHost={amHost}
         />
       </div>
     );
@@ -177,6 +220,9 @@ const GameApp: React.FC = () => {
         players={players}
         currentPlayerId={currentPlayer.id}
         onCardPlay={handleCardPlay}
+        onSwapTrump={handleSwapTrump}
+        onPlayAgain={handlePlayAgain}
+        isHost={amHost}
       />
     </div>
   );

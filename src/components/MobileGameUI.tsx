@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled, { css } from 'styled-components';
 import { CardComponent } from '@/components/Card';
 import {
   DESIGN,
   pulseBlue,
   fadeOut,
+  cardEntrance,
+  swapGlow,
   cardColors,
   GameUIProps,
   getPlayerInitials,
   getPlayerName,
   getPlayerPhoto,
+  canSwapWithTrump,
 } from '@/components/shared/gameDesign';
 import packageJson from '../../package.json';
 
@@ -169,11 +172,11 @@ const YouBadge = styled.span`
 
 // Trump Card Area (inline in top bar)
 const TrumpMini = styled.div`
-  width: 32px;
-  height: 48px;
-  border-radius: 4px;
-  overflow: hidden;
-  flex-shrink: 0;
+    width: 48px;
+    height: 72px;
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
 `;
 
 // Main Play Area
@@ -221,6 +224,7 @@ const PlayedCardWrapper = styled.div`
   height: 100%;
   border-radius: ${DESIGN.radius.cards};
   overflow: hidden;
+  animation: ${cardEntrance} 250ms ease-out;
 `;
 
 const PlaySlotLabel = styled.div`
@@ -262,7 +266,7 @@ const HandRow = styled.div`
   align-items: center;
 `;
 
-const HandCard = styled.div<{ isPlayable?: boolean }>`
+const HandCard = styled.div<{ isPlayable?: boolean; isSwappable?: boolean }>`
   flex-shrink: 0;
   width: 72px;
   height: 108px;
@@ -278,6 +282,41 @@ const HandCard = styled.div<{ isPlayable?: boolean }>`
       transform: translateY(-8px) scale(1.05);
     `}
   }
+`;
+
+const HandCardSlot = styled.div<{ entranceDelay?: number }>`
+  flex-shrink: 0;
+  animation: ${cardEntrance} 200ms ease-out ${props => props.entranceDelay || 0}ms both;
+`;
+
+const SwapBadge = styled.button`
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: ${DESIGN.colors.accents.green};
+  color: ${DESIGN.colors.bg.primary};
+  border: 2px solid ${DESIGN.colors.bg.primary};
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  z-index: 1002;
+  white-space: nowrap;
+  line-height: 1;
+
+  &:active {
+    transform: scale(0.9);
+  }
+`;
+
+const TrumpFlashOverlay = styled.div`
+  position: absolute;
+  inset: -3px;
+  border-radius: 6px;
+  pointer-events: none;
+  animation: ${swapGlow} 800ms ease-out;
 `;
 
 // Game Over (mobile version)
@@ -355,12 +394,34 @@ const ScoreRow = styled.div<{ isWinner?: boolean }>`
   }
 `;
 
+const PlayAgainButton = styled.button`
+  margin-top: ${DESIGN.spacing.md};
+  padding: ${DESIGN.spacing.sm} ${DESIGN.spacing.lg};
+  background: ${DESIGN.colors.accents.green};
+  color: ${DESIGN.colors.bg.primary};
+  border: none;
+  border-radius: ${DESIGN.radius.buttons};
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 150ms ease-out;
+
+  &:active {
+    transform: scale(0.97);
+  }
+`;
+
 // ===== MOBILE GAME UI COMPONENT =====
 export const MobileGameUI: React.FC<GameUIProps> = ({
   gameState,
   players,
   currentPlayerId,
   onCardPlay,
+  onSwapTrump,
+  onPlayAgain,
+  isHost: isHostPlayer,
 }) => {
   const playedCards = gameState.playedCards;
   const currentTurnIndex = gameState.currentTurnPlayerIndex;
@@ -371,6 +432,21 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
   // ===== ROUND WINNER STATE =====
   const roundWinnerId = gameState.phase === 'round_complete' ? gameState.roundWinnerId : null;
   const [isFadingOut, setIsFadingOut] = useState(false);
+
+  // Trump swap detection
+  const [trumpSwapped, setTrumpSwapped] = useState(false);
+  const prevTrumpIdRef = useRef(gameState.trumpCard?.id);
+
+  useEffect(() => {
+    if (prevTrumpIdRef.current !== undefined &&
+        gameState.trumpCard?.id !== prevTrumpIdRef.current) {
+      setTrumpSwapped(true);
+      const timer = setTimeout(() => setTrumpSwapped(false), 800);
+      prevTrumpIdRef.current = gameState.trumpCard?.id;
+      return () => clearTimeout(timer);
+    }
+    prevTrumpIdRef.current = gameState.trumpCard?.id;
+  }, [gameState.trumpCard?.id]);
 
   // ===== FADE OUT ANIMATION =====
   useEffect(() => {
@@ -419,6 +495,12 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
                   </ScoreRow>
                 ))}
             </ScoresGrid>
+            {isHostPlayer && onPlayAgain && (
+              <PlayAgainButton onClick={onPlayAgain}>PLAY AGAIN</PlayAgainButton>
+            )}
+            {!isHostPlayer && (
+              <div style={{ marginTop: DESIGN.spacing.md, fontSize: '12px', color: DESIGN.colors.text.tertiary }}>Waiting for host to start a new game...</div>
+            )}
           </GameOverDialog>
         </GameOverOverlay>
       </GameContainer>
@@ -440,15 +522,18 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
             Deck <MiniDeckCount>{gameState.deck.length}</MiniDeckCount>
           </MiniDeckInfo>
           {gameState.trumpCard && (
-            <TrumpMini>
-              <CardComponent
-                card={gameState.trumpCard}
-                onClick={() => {}}
-                transform=""
-                colors={cardColors}
-                fillContainer
-              />
-            </TrumpMini>
+            <div style={{ position: 'relative' }}>
+              <TrumpMini>
+                <CardComponent
+                  card={gameState.trumpCard}
+                  onClick={() => {}}
+                  transform=""
+                  colors={cardColors}
+                  fillContainer
+                />
+              </TrumpMini>
+              {trumpSwapped && <TrumpFlashOverlay key={gameState.trumpCard.id} />}
+            </div>
           )}
         </TopBarRight>
       </TopBar>
@@ -554,20 +639,30 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
           {isCurrentPlayerTurn ? 'Your Turn — Tap to Play' : 'Waiting...'}
         </HandLabel>
         <HandRow>
-          {playerHand.map((card, idx) => (
-            <HandCard
-              key={idx}
-              isPlayable={isCurrentPlayerTurn}
-              onClick={() => isCurrentPlayerTurn && onCardPlay(card)}
-            >
-              <CardComponent
-                card={card}
-                onClick={() => isCurrentPlayerTurn && onCardPlay(card)}
-                transform=""
-                colors={cardColors}
-              />
-            </HandCard>
-          ))}
+          {playerHand.map((card, idx) => {
+            const swappable = canSwapWithTrump(card, gameState.trumpCard, gameState.deck.length);
+            return (
+              <HandCardSlot key={`${gameState.roundNumber}_${card.id}`} entranceDelay={idx * 60}>
+                <HandCard
+                  isPlayable={isCurrentPlayerTurn}
+                  isSwappable={swappable}
+                  onClick={() => isCurrentPlayerTurn && onCardPlay(card)}
+                >
+                  <CardComponent
+                    card={card}
+                    onClick={() => isCurrentPlayerTurn && onCardPlay(card)}
+                    transform=""
+                    colors={cardColors}
+                  />
+                  {swappable && (
+                    <SwapBadge onClick={(e) => { e.stopPropagation(); onSwapTrump(card); }}>
+                      SWAP
+                    </SwapBadge>
+                  )}
+                </HandCard>
+              </HandCardSlot>
+            );
+          })}
         </HandRow>
       </BottomArea>
     </GameContainer>

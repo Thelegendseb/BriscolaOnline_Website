@@ -83,13 +83,16 @@ export const cardColors = {
 // ===== SHARED PROPS INTERFACE =====
 import { GameState } from '@/game/BaseGameLogic';
 import { PlayerState } from 'playroomkit';
-import { Card as CardType } from '@/components/Card';
+import { Card as CardType, CardValue } from '@/components/Card';
 
 export interface GameUIProps {
   gameState: GameState;
   players: PlayerState[];
   currentPlayerId: string;
   onCardPlay: (card: CardType) => void;
+  onSwapTrump: (card: CardType) => void;
+  onPlayAgain?: () => void;
+  isHost?: boolean;
 }
 
 // ===== SHARED HELPER FUNCTIONS =====
@@ -111,3 +114,48 @@ export const getPlayerPhoto = (player: PlayerState): string | undefined => {
   const profile = player.getProfile();
   return profile?.photo;
 };
+
+// ===== SWAP MECHANICS =====
+export const MAJOR_VALUES: CardValue[] = [
+  CardValue.KING, CardValue.KNIGHT, CardValue.JACK, CardValue.ONE, CardValue.THREE
+];
+
+/**
+ * Check if a card in hand can be swapped with the current trump card.
+ * 7 of trump suit → swap major trump cards (King, Knight, Jack, Ace, Three)
+ * 2 of trump suit → swap minor trump cards (everything else)
+ */
+export const canSwapWithTrump = (
+  card: CardType,
+  trumpCard: CardType | null,
+  deckLength: number
+): boolean => {
+  if (!trumpCard || deckLength === 0) return false;
+  if (card.suit !== trumpCard.suit) return false;
+
+  const isMajorTrump = MAJOR_VALUES.includes(trumpCard.value);
+
+  if (card.value === CardValue.SEVEN && isMajorTrump) return true;
+  if (card.value === CardValue.TWO && !isMajorTrump) return true;
+
+  return false;
+};
+
+// ===== ADDITIONAL SHARED ANIMATIONS =====
+export const cardEntrance = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+export const swapGlow = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.9); }
+  30% { box-shadow: 0 0 30px 10px rgba(0, 255, 136, 0.6); }
+  60% { box-shadow: 0 0 20px 6px rgba(0, 255, 136, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+`;
