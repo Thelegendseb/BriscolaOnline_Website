@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { Card as CardType, Suit, CardComponent } from '@/components/Card';
-import { GameState, PlayedCardData } from '@/game/BaseGameLogic';
+import { GameState } from '@/game/BaseGameLogic';
 import { PlayerState } from 'playroomkit';
 import packageJson from '../../package.json';
 
@@ -55,15 +55,16 @@ const DESIGN = {
 // ===== ANIMATIONS =====
 const pulseBlue = keyframes`
   0% {
-    box-shadow: 0 0 0 0 ${DESIGN.colors.accents.cyan};
+    box-shadow: 0 0 0 3px ${DESIGN.colors.accents.cyan};
   }
   50% {
-    box-shadow: 0 0 0 8px ${DESIGN.colors.accents.cyan}88;
+    box-shadow: 0 0 0 6px ${DESIGN.colors.accents.cyan};
   }
   100% {
-    box-shadow: 0 0 0 0 ${DESIGN.colors.accents.cyan}00;
+    box-shadow: 0 0 0 3px ${DESIGN.colors.accents.cyan};
   }
 `;
+
 
 const fadeOut = keyframes`
   0% {
@@ -289,8 +290,8 @@ const PlayAreaContainer = styled.div`
 
 const PlaySlot = styled.div<{ isEmpty?: boolean; isWinner?: boolean; isFadingOut?: boolean }>`
   position: relative;
-  width: 100px;
-  height: 140px;
+  width: 160px;
+  aspect-ratio: 0.65;
   border: 2px dashed ${props => props.isEmpty ? DESIGN.colors.bg.tertiary : 'transparent'};
   border-radius: ${DESIGN.radius.cards};
   display: flex;
@@ -300,18 +301,18 @@ const PlaySlot = styled.div<{ isEmpty?: boolean; isWinner?: boolean; isFadingOut
   background: ${props => props.isEmpty ? 'transparent' : 'transparent'};
   
   ${props => props.isWinner && css`
-    animation: ${pulseBlue} 1s ease-out;
+    animation: ${pulseBlue} 2s ease-out;
   `}
   
   ${props => props.isFadingOut && css`
-    animation: ${fadeOut} 600ms ease-out forwards;
+    animation: ${fadeOut} 400ms ease-out forwards;
   `}
 `;
 
 const PlayedCardWrapper = styled.div`
-  position: absolute;
-  width: 100px;
-  height: 140px;
+  position: relative;
+  width: 100%;
+  height: 100%;
   border-radius: ${DESIGN.radius.cards};
   overflow: hidden;
 `;
@@ -471,12 +472,7 @@ interface DesktopGameUIProps {
   gameState: GameState;
   players: PlayerState[];
   currentPlayerId: string;
-  isGameHost: boolean;
-  playedCards: PlayedCardData[];
-  currentTurnIndex: number;
   onCardPlay: (card: CardType) => void;
-  notifications: Array<{ message: string; type: string }>;
-  gameLogic: any;
 }
 
 // ===== DESKTOP GAME UI COMPONENT =====
@@ -484,46 +480,33 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
   gameState,
   players,
   currentPlayerId,
-  isGameHost,
-  playedCards,
-  currentTurnIndex,
   onCardPlay,
-  notifications,
-  gameLogic,
 }) => {
+  const playedCards = gameState.playedCards;
+  const currentTurnIndex = gameState.currentTurnPlayerIndex;
   const currentPlayerIndex = players.findIndex(p => p.id === currentPlayerId);
-  const isCurrentPlayerTurn = currentTurnIndex === currentPlayerIndex;
+  const isCurrentPlayerTurn = gameState.phase === 'playing' && currentTurnIndex === currentPlayerIndex;
   const playerHand = gameState.playerHands[currentPlayerId] || [];
   const playerStack = gameState.playerStacks[currentPlayerId] || [];
 
   // ===== ROUND WINNER STATE =====
-  const [roundWinnerId, setRoundWinnerId] = useState<string | null>(null);
+  // roundWinnerId comes from shared state — all clients see the same value
+  const roundWinnerId = gameState.phase === 'round_complete' ? gameState.roundWinnerId : null;
   const [isFadingOut, setIsFadingOut] = useState(false);
 
-  // ===== EVALUATE ROUND =====
+  // ===== FADE OUT ANIMATION =====
   useEffect(() => {
-    // When all 3 cards are played, evaluate the round
-    if (playedCards.length === 3 && !roundWinnerId && gameState.trumpCard) {
-      const winnerId = gameLogic.evaluateRound(playedCards, gameState.trumpCard.suit);
-      setRoundWinnerId(winnerId);
-
-      // After 1.5 seconds, fade out cards
+    if (gameState.phase === 'round_complete') {
+      setIsFadingOut(false);
+      // Start fading before host resolves at 2.5s
       const fadeTimer = setTimeout(() => {
         setIsFadingOut(true);
-      }, 1500);
-
-      // After 2 seconds, reset for next round
-      const resetTimer = setTimeout(() => {
-        setRoundWinnerId(null);
-        setIsFadingOut(false);
       }, 2000);
-
-      return () => {
-        clearTimeout(fadeTimer);
-        clearTimeout(resetTimer);
-      };
+      return () => clearTimeout(fadeTimer);
+    } else {
+      setIsFadingOut(false);
     }
-  }, [playedCards, roundWinnerId, gameState.trumpCard, gameLogic]);
+  }, [gameState.phase, gameState.roundNumber]);
 
   // ===== HELPER FUNCTIONS =====
   const getPlayerInitials = (playerId: string): string => {
@@ -549,8 +532,9 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
     return players.filter(p => p.id !== currentPlayerId);
   };
 
-  if (gameState.gameOver) {
-    const { scores, winner } = gameLogic.evaluateGame();
+  if (gameState.phase === 'game_over') {
+    const scores = gameState.finalScores;
+    const winner = gameState.gameWinnerId!;
     const winnerPlayer = players.find(p => p.id === winner);
 
     return (
@@ -563,7 +547,7 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
               <WinnerScore>{scores[winner]} points</WinnerScore>
             </WinnerInfo>
             <ScoresGrid>
-              {players
+              {[...players]
                 .sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0))
                 .map((player, index) => (
                   <ScoreRow key={player.id} isWinner={player.id === winner}>
@@ -609,6 +593,10 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
                   <div>Hand</div>
                   <div>{gameState.playerHands[player.id]?.length || 0}</div>
                 </StatItem>
+                <StatItem>
+                  <div>Won</div>
+                  <div>{gameState.playerStacks[player.id]?.length || 0}</div>
+                </StatItem>
               </OpponentStats>
             </OpponentCard>
           );
@@ -621,7 +609,7 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
           <GameTitle>
             BRISCOLA<GameVersion>v{packageJson.version}</GameVersion>
           </GameTitle>
-          <RoundInfo>Round {gameState.currentRound}</RoundInfo>
+          <RoundInfo>Round {gameState.roundNumber}</RoundInfo>
         </GameHeader>
 
         <GameBoard>
@@ -714,6 +702,7 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
                     onClick={() => {}}
                     transform=""
                     colors={cardColors}
+                    fillContainer
                   />
                 </PlayedCardWrapper>
               )}
@@ -732,6 +721,7 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
                     onClick={() => {}}
                     transform=""
                     colors={cardColors}
+                    fillContainer
                   />
                 </PlayedCardWrapper>
               )}
@@ -750,6 +740,7 @@ export const DesktopGameUI: React.FC<DesktopGameUIProps> = ({
                     onClick={() => {}}
                     transform=""
                     colors={cardColors}
+                    fillContainer
                   />
                 </PlayedCardWrapper>
               )}

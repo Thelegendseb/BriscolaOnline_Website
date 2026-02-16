@@ -14,20 +14,24 @@ export interface PlayedCardData {
   transform: string;
 }
 
+export type GamePhase =
+  | 'waiting'
+  | 'playing'
+  | 'round_complete'
+  | 'game_over';
+
 export interface GameState {
+  phase: GamePhase;
   deck: Card[];
   trumpCard: Card | null;
-  gameStarted: boolean;
-  isShuffling: boolean;
   playerHands: { [playerId: string]: Card[] };
   playerStacks: { [playerId: string]: Card[] };
-  cardsDealt: boolean;
-  currentRound: number;
-  roundWinner: string | null;
-  isResolvingRound: boolean;
-  gameOver: boolean;
+  playedCards: PlayedCardData[];
+  currentTurnPlayerIndex: number;
+  roundNumber: number;
+  roundWinnerId: string | null;
   finalScores: { [playerId: string]: number };
-  gameWinner: string | null;
+  gameWinnerId: string | null;
 }
 
 export interface GameConfig {
@@ -36,133 +40,61 @@ export interface GameConfig {
   maxPlayers: number;
 }
 
-export type NotificationType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
-
-export interface IGameNotification {
-  message: string;
-  type: NotificationType;
-}
-
 /**
  * Base class for all game modes.
- * Handles core game logic: deck management, card dealing, round evaluation, scoring.
+ * Host-authoritative: only the host creates and mutates this.
+ * All methods are synchronous and return state snapshots.
  */
 export abstract class BaseGameLogic {
   protected players: PlayerState[];
-  protected gameState: GameState;
-  protected playedCards: PlayedCardData[] = [];
-  protected currentTurn: number = 0;
+  protected state: GameState;
   protected config: GameConfig;
-  protected notifications: IGameNotification[] = [];
 
   constructor(players: PlayerState[], config: GameConfig) {
     this.players = players;
     this.config = config;
-    this.gameState = this.initializeGameState();
-  }
-
-  /**
-   * Initialize game state with default values
-   */
-  protected initializeGameState(): GameState {
-    return {
+    this.state = {
+      phase: 'waiting',
       deck: [],
       trumpCard: null,
-      gameStarted: false,
-      isShuffling: false,
       playerHands: {},
       playerStacks: {},
-      cardsDealt: false,
-      currentRound: 1,
-      roundWinner: null,
-      isResolvingRound: false,
-      gameOver: false,
+      playedCards: [],
+      currentTurnPlayerIndex: 0,
+      roundNumber: 1,
+      roundWinnerId: null,
       finalScores: {},
-      gameWinner: null
+      gameWinnerId: null,
     };
   }
 
   /**
-   * Get current game state
+   * Get a deep copy of the current game state
    */
-  getGameState(): GameState {
-    return this.gameState;
+  getState(): GameState {
+    return JSON.parse(JSON.stringify(this.state));
   }
 
   /**
-   * Sync game state from multiplayer state
+   * Load state from shared multiplayer state (host uses this to stay in sync)
    */
-  syncGameState(state: GameState): void {
-    this.gameState = state;
+  loadState(state: GameState): void {
+    this.state = JSON.parse(JSON.stringify(state));
   }
 
   /**
-   * Sync played cards from multiplayer state
+   * Initialize the game - shuffle deck and deal cards.
+   * Called once by the host. Returns new state.
    */
-  syncPlayedCards(cards: PlayedCardData[]): void {
-    this.playedCards = cards;
-  }
-
-  /**
-   * Sync current turn from multiplayer state
-   */
-  syncCurrentTurn(turn: number): void {
-    this.currentTurn = turn;
-  }
-
-  /**
-   * Get current turn index
-   */
-  getCurrentTurn(): number {
-    return this.currentTurn;
-  }
-
-  /**
-   * Get played cards
-   */
-  getPlayedCards(): PlayedCardData[] {
-    return this.playedCards;
-  }
-
-  /**
-   * Get pending notifications
-   */
-  getNotifications(): IGameNotification[] {
-    const notifs = [...this.notifications];
-    this.notifications = [];
-    return notifs;
-  }
-
-  /**
-   * Add a notification
-   */
-  protected addNotification(message: string, type: NotificationType): void {
-    this.notifications.push({ message, type });
-  }
-
-  /**
-   * Initialize the game - shuffle deck and deal cards
-   */
-  async initializeGame(): Promise<void> {
-    if (this.gameState.gameStarted) return;
-
-    this.addNotification("Host is shuffling the deck...", 'INFO');
-    this.gameState.isShuffling = true;
-
-    await this.sleep(2000);
-
+  initializeGame(): GameState {
     const fullDeck = shuffleDeck(createDeck());
     const trumpCard = fullDeck.pop()!;
 
     // Balance deck so remaining cards are divisible by number of players
     const remainingCards = fullDeck.length;
     const cardsToRemove = remainingCards % this.players.length;
-
-    if (cardsToRemove > 0) {
-      console.log(`Removing ${cardsToRemove} cards to balance deck for ${this.players.length} players`);
-      for (let i = 0; i < cardsToRemove; i++) {
-        fullDeck.pop();
-      }
+    for (let i = 0; i < cardsToRemove; i++) {
+      fullDeck.pop();
     }
 
     const { newDeck, hands } = this.dealCards(fullDeck);
@@ -172,28 +104,21 @@ export abstract class BaseGameLogic {
       stacks[player.id] = [];
     });
 
-    this.gameState = {
+    this.state = {
+      phase: 'playing',
       deck: newDeck,
       trumpCard,
-      gameStarted: true,
-      isShuffling: false,
       playerHands: hands,
       playerStacks: stacks,
-      cardsDealt: true,
-      currentRound: 1,
-      roundWinner: null,
-      isResolvingRound: false,
-      gameOver: false,
+      playedCards: [],
+      currentTurnPlayerIndex: 0,
+      roundNumber: 1,
+      roundWinnerId: null,
       finalScores: {},
-      gameWinner: null
+      gameWinnerId: null,
     };
 
-    this.addNotification(`Game started! Trump suit: ${trumpCard.suit}s`, 'SUCCESS');
-    this.addNotification(`Cards dealt! Each player has ${this.config.cardsPerPlayer} cards`, 'INFO');
-
-    if (cardsToRemove > 0) {
-      this.addNotification(`${cardsToRemove} cards removed to balance deck`, 'INFO');
-    }
+    return this.getState();
   }
 
   /**
@@ -220,17 +145,19 @@ export abstract class BaseGameLogic {
   }
 
   /**
-   * Play a card - to be implemented by subclasses for different rules
+   * Play a card. Returns new state if valid, null otherwise.
+   * Only the host calls this.
    */
-  abstract playCard(playerId: string, card: Card): boolean;
+  abstract playCard(playerId: string, cardId: string): GameState | null;
 
   /**
-   * Check if the current round is complete and ready to be resolved
+   * Resolve the completed round. Returns new state.
+   * Only the host calls this after the display timeout.
    */
-  abstract isRoundComplete(): boolean;
+  abstract resolveRound(): GameState;
 
   /**
-   * Evaluate the round and determine winner
+   * Evaluate round winner from played cards
    */
   protected evaluateRound(playedCards: PlayedCardData[], trumpSuit: Suit): string {
     if (playedCards.length === 0) return '';
@@ -260,18 +187,13 @@ export abstract class BaseGameLogic {
   }
 
   /**
-   * Resolve the current round
+   * Calculate final game scores from player stacks
    */
-  abstract resolveRound(): Promise<void>;
-
-  /**
-   * Calculate final scores
-   */
-  protected evaluateGame(): { scores: { [playerId: string]: number }; winner: string } {
+  evaluateGame(): { scores: { [playerId: string]: number }; winner: string } {
     const scores: { [playerId: string]: number } = {};
 
-    Object.keys(this.gameState.playerStacks).forEach(playerId => {
-      const stack = this.gameState.playerStacks[playerId];
+    Object.keys(this.state.playerStacks).forEach(playerId => {
+      const stack = this.state.playerStacks[playerId];
       scores[playerId] = stack.reduce((total, card) => total + card.score, 0);
     });
 
@@ -294,13 +216,6 @@ export abstract class BaseGameLogic {
    */
   getPlayers(): PlayerState[] {
     return this.players;
-  }
-
-  /**
-   * Utility: sleep function
-   */
-  protected sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

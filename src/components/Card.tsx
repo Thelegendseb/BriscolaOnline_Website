@@ -104,7 +104,8 @@ interface CardComponentProps {
   avatarSrc?: string;
   transform?: string;
   isBack?: boolean;
-  size?: 'normal' | 'small' | 'tiny';
+  size?: 'large' | 'normal' | 'small' | 'tiny';
+  fillContainer?: boolean;
   colors: {
     cardBg: string;
     cardBorder: string;
@@ -126,6 +127,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   transform,
   isBack = false,
   size = 'normal',
+  fillContainer = false,
   colors,
   mobileBreakpoint = '768px'
 }) => {
@@ -138,6 +140,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       onClick={disabled ? undefined : onClick}
       $isButton={!!onClick}
       $size={size}
+      $fillContainer={fillContainer}
       $colors={colors}
       $mobileBreakpoint={mobileBreakpoint}
       onMouseEnter={() => setShowTooltip(true)}
@@ -173,25 +176,28 @@ const CardWrapper = styled.div<{
   $disabled?: boolean; 
   $transform?: string; 
   $isButton?: boolean;
-  $size: 'normal' | 'small' | 'tiny';
+  $size: 'large' | 'normal' | 'small' | 'tiny';
+  $fillContainer?: boolean;
   $colors: CardComponentProps['colors'];
   $mobileBreakpoint: string;
 }>`
   background: ${props => props.$colors.cardBg};
   border: 3px solid ${props => props.$colors.cardBorder};
   border-radius: ${props => props.$isButton ? '0.8rem' : '1.2rem'};
-  padding: ${props => props.$isButton ? '0.2rem' : '0.3rem'}; /* Reduced from 0.5rem/1rem */
+  padding: ${props => props.$isButton ? '0.2rem' : '0.3rem'};
   position: relative;
-  width: ${props => {
+  width: ${props => props.$fillContainer ? '100%' : (props => {
+    if (props.$size === 'large') return props.$isButton ? '10rem' : '10.5rem';
     if (props.$size === 'tiny') return props.$isButton ? '3rem' : '3.5rem';
     if (props.$size === 'small') return props.$isButton ? '4rem' : '5rem';
     return props.$isButton ? '5rem' : '8rem';
-  }};
-  height: ${props => {
+  })(props)};
+  height: ${props => props.$fillContainer ? '100%' : (props => {
+    if (props.$size === 'large') return props.$isButton ? '15rem' : '16rem';
     if (props.$size === 'tiny') return props.$isButton ? '4rem' : '4.5rem';
     if (props.$size === 'small') return props.$isButton ? '5.5rem' : '7rem';
     return props.$isButton ? '7rem' : '12rem';
-  }};
+  })(props)};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,17 +216,19 @@ const CardWrapper = styled.div<{
   }
 
   @media (max-width: ${props => props.$mobileBreakpoint}) {
-    width: ${props => {
+    width: ${props => props.$fillContainer ? '100%' : (props => {
+      if (props.$size === 'large') return props.$isButton ? '7rem' : '7.5rem';
       if (props.$size === 'tiny') return props.$isButton ? '2.5rem' : '3rem';
       if (props.$size === 'small') return props.$isButton ? '3rem' : '4rem';
       return props.$isButton ? '4rem' : '6rem';
-    }};
-    height: ${props => {
+    })(props)};
+    height: ${props => props.$fillContainer ? '100%' : (props => {
+      if (props.$size === 'large') return props.$isButton ? '10.5rem' : '11rem';
       if (props.$size === 'tiny') return props.$isButton ? '3.5rem' : '4rem';
       if (props.$size === 'small') return props.$isButton ? '4.5rem' : '5.5rem';
       return props.$isButton ? '5.5rem' : '9rem';
-    }};
-    padding: ${props => props.$isButton ? '0.1rem' : '0.2rem'}; /* Reduced mobile padding too */
+    })(props)};
+    padding: ${props => props.$isButton ? '0.1rem' : '0.2rem'};
   }
 `;
 
@@ -231,7 +239,7 @@ const CardImage = styled.img`
   border-radius: 0.4rem;
 `;
 
-const CardPlaceholder = styled.div<{ $colors: CardComponentProps['colors']; $size: 'normal' | 'small' | 'tiny' }>`
+const CardPlaceholder = styled.div<{ $colors: CardComponentProps['colors']; $size: 'large' | 'normal' | 'small' | 'tiny' }>`
   width: 100%;
   height: 100%;
   background: ${props => props.$colors.surface};
@@ -241,13 +249,14 @@ const CardPlaceholder = styled.div<{ $colors: CardComponentProps['colors']; $siz
   justify-content: center;
   color: ${props => props.$colors.textSecondary};
   font-size: ${props => {
+    if (props.$size === 'large') return '1rem';
     if (props.$size === 'tiny') return '0.4rem';
     if (props.$size === 'small') return '0.6rem';
     return '0.8rem';
   }};
 `;
 
-const CardAvatar = styled.div<{ $mobileBreakpoint: string; $size: 'normal' | 'small' | 'tiny' }>`
+const CardAvatar = styled.div<{ $mobileBreakpoint: string; $size: 'large' | 'normal' | 'small' | 'tiny' }>`
   position: absolute;
   top: 3px;
   left: 3px;
@@ -255,11 +264,13 @@ const CardAvatar = styled.div<{ $mobileBreakpoint: string; $size: 'normal' | 'sm
   
   img {
     width: ${props => {
+      if (props.$size === 'large') return '3rem';
       if (props.$size === 'tiny') return '1rem';
       if (props.$size === 'small') return '1.5rem';
       return '2.5rem';
     }};
     height: ${props => {
+      if (props.$size === 'large') return '3rem';
       if (props.$size === 'tiny') return '1rem';
       if (props.$size === 'small') return '1.5rem';
       return '2.5rem';
@@ -269,11 +280,13 @@ const CardAvatar = styled.div<{ $mobileBreakpoint: string; $size: 'normal' | 'sm
 
     @media (max-width: ${props => props.$mobileBreakpoint}) {
       width: ${props => {
+        if (props.$size === 'large') return '2rem';
         if (props.$size === 'tiny') return '0.8rem';
         if (props.$size === 'small') return '1.2rem';
         return '2rem';
       }};
       height: ${props => {
+        if (props.$size === 'large') return '2rem';
         if (props.$size === 'tiny') return '0.8rem';
         if (props.$size === 'small') return '1.2rem';
         return '2rem';
@@ -282,9 +295,10 @@ const CardAvatar = styled.div<{ $mobileBreakpoint: string; $size: 'normal' | 'sm
   }
 `;
 
-const Tooltip = styled.div<{ $colors: CardComponentProps['colors']; $size: 'normal' | 'small' | 'tiny'; $mobileBreakpoint: string }>`
+const Tooltip = styled.div<{ $colors: CardComponentProps['colors']; $size: 'large' | 'normal' | 'small' | 'tiny'; $mobileBreakpoint: string }>`
   position: absolute;
   top: ${props => {
+    if (props.$size === 'large') return '-85px';
     if (props.$size === 'tiny') return '-50px';
     if (props.$size === 'small') return '-60px';
     return '-70px';
@@ -294,12 +308,14 @@ const Tooltip = styled.div<{ $colors: CardComponentProps['colors']; $size: 'norm
   background: ${props => props.$colors.surface};
   color: ${props => props.$colors.text};
   padding: ${props => {
+    if (props.$size === 'large') return '1rem 1.25rem';
     if (props.$size === 'tiny') return '0.25rem 0.5rem';
     if (props.$size === 'small') return '0.5rem 0.75rem';
     return '0.75rem 1rem';
   }};
   border-radius: 0.5rem;
   font-size: ${props => {
+    if (props.$size === 'large') return '0.9rem';
     if (props.$size === 'tiny') return '0.6rem';
     if (props.$size === 'small') return '0.7rem';
     return '0.8rem';
@@ -334,7 +350,7 @@ const Tooltip = styled.div<{ $colors: CardComponentProps['colors']; $size: 'norm
   }
 
   @media (max-width: ${props => props.$mobileBreakpoint}) {
-    display: none; /* Hide tooltips on mobile to avoid touch issues */
+    display: none;
   }
 `;
 

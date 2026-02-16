@@ -7,22 +7,21 @@ import {
 import {
   BaseGameLogic,
   PlayedCardData,
-  GameConfig
+  GameConfig,
+  GameState
 } from '../BaseGameLogic';
 
 /**
  * ThreeForAllGameLogic
- * Implements the 3-for-all game mode where 3 players compete individually against each other.
+ * 3 players compete individually. Host-authoritative.
  *
  * Game Flow:
  * 1. Each player starts with 3 cards
  * 2. Players take turns playing one card each in order
- * 3. After all players play a card, the round is evaluated
- * 4. The player with the highest card wins all 3 cards and places them in their stack
- * 5. Cards are redrawn from the deck in order (winner first, then other players)
- * 6. The winner starts the next round
- * 7. Game continues until deck is empty and all players have played their remaining cards
- * 8. Final scores are calculated based on the point values of cards won
+ * 3. After all players play a card, phase becomes 'round_complete'
+ * 4. After a visual delay, the host calls resolveRound()
+ * 5. The winner gets all played cards, new cards are drawn, next round starts
+ * 6. Game ends when all cards are played
  */
 export class ThreeForAllGameLogic extends BaseGameLogic {
   protected static readonly CONFIG: GameConfig = {
@@ -39,181 +38,135 @@ export class ThreeForAllGameLogic extends BaseGameLogic {
   }
 
   /**
-   * Play a card from the current player
-   * 3-for-all has no special card play restrictions - any card can be played
+   * Play a card from a player. Returns new state or null if invalid.
    */
-  playCard(playerId: string, card: Card): boolean {
-    if (!this.gameState.gameStarted || this.gameState.isResolvingRound) {
-      this.addNotification("Game is not in a playable state", 'WARNING');
-      return false;
-    }
+  playCard(playerId: string, cardId: string): GameState | null {
+    if (this.state.phase !== 'playing') return null;
 
-    const currentTurnPlayer = this.players[this.currentTurn];
-    if (currentTurnPlayer.id !== playerId) {
-      this.addNotification("It's not your turn!", 'WARNING');
-      return false;
-    }
+    const currentTurnPlayer = this.players[this.state.currentTurnPlayerIndex];
+    if (currentTurnPlayer.id !== playerId) return null;
 
-    const playerHand = this.gameState.playerHands[playerId];
-    const cardIndex = playerHand.findIndex(c => c.id === card.id);
+    const playerHand = this.state.playerHands[playerId];
+    if (!playerHand) return null;
 
-    if (cardIndex === -1) {
-      this.addNotification("You don't have that card!", 'ERROR');
-      return false;
-    }
+    const cardIndex = playerHand.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) return null;
 
-    // Remove card from hand
-    playerHand.splice(cardIndex, 1);
+    const card = playerHand[cardIndex];
+    const newHand = [...playerHand];
+    newHand.splice(cardIndex, 1);
 
-    // Add to played cards
-    this.playedCards.push({
-      card,
-      playerId,
-      transform: this.generateRandomTransform()
-    });
+    const newPlayedCards = [
+      ...this.state.playedCards,
+      { card, playerId, transform: this.generateRandomTransform() }
+    ];
 
-    // Move to next player
-    this.currentTurn = (this.currentTurn + 1) % this.players.length;
+    const newHands = { ...this.state.playerHands, [playerId]: newHand };
+    const nextTurn = (this.state.currentTurnPlayerIndex + 1) % this.players.length;
 
-    return true;
-  }
-
-  /**
-   * Check if round is complete (all players have played a card)
-   */
-  isRoundComplete(): boolean {
-    return this.playedCards.length === this.players.length;
-  }
-
-  /**
-   * Resolve the current round
-   * Award all played cards to the winner
-   */
-  async resolveRound(): Promise<void> {
-    if (!this.isRoundComplete()) {
-      this.addNotification("Not all players have played yet", 'WARNING');
-      return;
-    }
-
-    if (this.gameState.isResolvingRound) {
-      return;
-    }
-
-    this.gameState.isResolvingRound = true;
-
-    try {
-      this.addNotification("Resolving round...", 'INFO');
-
+    // Check if round is complete
+    if (newPlayedCards.length === this.players.length) {
       const winnerId = this.evaluateRound(
-        this.playedCards,
-        this.gameState.trumpCard?.suit || ('coin' as Suit)
+        newPlayedCards,
+        this.state.trumpCard?.suit || ('coin' as Suit)
       );
 
-      const winnerPlayer = this.getPlayer(winnerId);
-      const winnerName = winnerPlayer?.getProfile()?.name || 'Someone';
-
-      this.addNotification(`${winnerName} wins the round!`, 'SUCCESS');
-
-      await this.sleep(1000);
-
-      // Award all played cards to winner
-      const newPlayerStacks = { ...this.gameState.playerStacks };
-      if (!newPlayerStacks[winnerId]) {
-        newPlayerStacks[winnerId] = [];
-      }
-      newPlayerStacks[winnerId].push(...this.playedCards.map(pc => pc.card));
-
-      // Clear played cards
-      this.playedCards = [];
-
-      // Handle card drawing
-      let newDeck = [...this.gameState.deck];
-      let newHands = { ...this.gameState.playerHands };
-
-      if (newDeck.length > 0) {
-        // Winner draws first
-        const winnerIndex = this.players.findIndex(p => p.id === winnerId);
-        const drawOrder: string[] = [];
-
-        for (let i = 0; i < this.players.length; i++) {
-          const playerIndex = (winnerIndex + i) % this.players.length;
-          drawOrder.push(this.players[playerIndex].id);
-        }
-
-        // Each player draws cards until they have CARDS_PER_PLAYER cards
-        for (const playerId of drawOrder) {
-          while (newDeck.length > 0 && newHands[playerId].length < this.config.cardsPerPlayer) {
-            const card = newDeck.pop()!;
-            newHands[playerId].push(card);
-          }
-        }
-      }
-
-      // Check if game is over
-      const allHandsEmpty = Object.values(newHands).every(hand => hand.length === 0);
-      const deckEmpty = newDeck.length === 0;
-
-      if (allHandsEmpty && deckEmpty) {
-        // Game over
-        this.gameState.isResolvingRound = false;
-
-        this.addNotification("All cards played! Calculating final scores...", 'INFO');
-        await this.sleep(1000);
-
-        const { scores, winner: gameWinnerId } = this.evaluateGame();
-        const gameWinner = this.getPlayer(gameWinnerId);
-        const gameWinnerName = gameWinner?.getProfile()?.name || 'Someone';
-
-        this.gameState = {
-          ...this.gameState,
-          playerStacks: newPlayerStacks,
-          playerHands: newHands,
-          deck: newDeck,
-          currentRound: this.gameState.currentRound + 1,
-          roundWinner: winnerId,
-          gameOver: true,
-          finalScores: scores,
-          gameWinner: gameWinnerId
-        };
-
-        await this.sleep(1000);
-
-        this.addNotification(
-          `Game Over! ${gameWinnerName} wins with ${scores[gameWinnerId]} points!`,
-          'SUCCESS'
-        );
-      } else {
-        // Continue to next round
-        this.gameState = {
-          ...this.gameState,
-          playerStacks: newPlayerStacks,
-          playerHands: newHands,
-          deck: newDeck,
-          currentRound: this.gameState.currentRound + 1,
-          roundWinner: winnerId,
-          isResolvingRound: false
-        };
-
-        // Winner starts next round
-        const winnerIndex = this.players.findIndex(p => p.id === winnerId);
-        this.currentTurn = winnerIndex;
-
-        if (newDeck.length > 0) {
-          this.addNotification(
-            `Round ${this.gameState.currentRound} complete! Cards drawn. ${winnerName} starts next round.`,
-            'INFO'
-          );
-        } else {
-          const maxHandSize = Math.max(...Object.values(newHands).map(hand => hand.length));
-          this.addNotification(
-            `Round ${this.gameState.currentRound} complete! No more cards to draw. ${maxHandSize} final rounds remaining.`,
-            'INFO'
-          );
-        }
-      }
-    } finally {
-      this.gameState.isResolvingRound = false;
+      this.state = {
+        ...this.state,
+        phase: 'round_complete',
+        playerHands: newHands,
+        playedCards: newPlayedCards,
+        currentTurnPlayerIndex: nextTurn,
+        roundWinnerId: winnerId,
+      };
+    } else {
+      this.state = {
+        ...this.state,
+        playerHands: newHands,
+        playedCards: newPlayedCards,
+        currentTurnPlayerIndex: nextTurn,
+      };
     }
+
+    return this.getState();
+  }
+
+  /**
+   * Resolve the completed round: award cards, draw new ones, check game over.
+   */
+  resolveRound(): GameState {
+    if (this.state.phase !== 'round_complete' || !this.state.roundWinnerId) {
+      return this.getState();
+    }
+
+    const winnerId = this.state.roundWinnerId;
+
+    // Award played cards to winner
+    const newStacks: { [playerId: string]: Card[] } = {};
+    for (const pid of Object.keys(this.state.playerStacks)) {
+      newStacks[pid] = [...this.state.playerStacks[pid]];
+    }
+    if (!newStacks[winnerId]) newStacks[winnerId] = [];
+    newStacks[winnerId].push(...this.state.playedCards.map(pc => pc.card));
+
+    // Draw cards (winner first, then others in order)
+    const newDeck = [...this.state.deck];
+    const newHands: { [playerId: string]: Card[] } = {};
+    for (const pid of Object.keys(this.state.playerHands)) {
+      newHands[pid] = [...this.state.playerHands[pid]];
+    }
+
+    if (newDeck.length > 0) {
+      const winnerIndex = this.players.findIndex(p => p.id === winnerId);
+      for (let i = 0; i < this.players.length; i++) {
+        const playerIndex = (winnerIndex + i) % this.players.length;
+        const pid = this.players[playerIndex].id;
+        while (newDeck.length > 0 && newHands[pid].length < this.config.cardsPerPlayer) {
+          const card = newDeck.pop()!;
+          newHands[pid].push(card);
+        }
+      }
+    }
+
+    // Check game over
+    const allHandsEmpty = Object.values(newHands).every(hand => hand.length === 0);
+    const deckEmpty = newDeck.length === 0;
+
+    if (allHandsEmpty && deckEmpty) {
+      const scores: { [playerId: string]: number } = {};
+      Object.keys(newStacks).forEach(pid => {
+        scores[pid] = newStacks[pid].reduce((total, card) => total + card.score, 0);
+      });
+      const gameWinner = Object.keys(scores).reduce((a, b) =>
+        scores[a] > scores[b] ? a : b
+      );
+
+      this.state = {
+        ...this.state,
+        phase: 'game_over',
+        deck: newDeck,
+        playerHands: newHands,
+        playerStacks: newStacks,
+        playedCards: [],
+        finalScores: scores,
+        gameWinnerId: gameWinner,
+      };
+    } else {
+      const winnerIndex = this.players.findIndex(p => p.id === winnerId);
+      this.state = {
+        ...this.state,
+        phase: 'playing',
+        deck: newDeck,
+        playerHands: newHands,
+        playerStacks: newStacks,
+        playedCards: [],
+        currentTurnPlayerIndex: winnerIndex,
+        roundNumber: this.state.roundNumber + 1,
+        roundWinnerId: null,
+      };
+    }
+
+    return this.getState();
   }
 
   /**

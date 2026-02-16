@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import {
   useMultiplayerState,
   insertCoin,
   myPlayer,
   usePlayersList,
-  PlayerState,
+  isHost,
   onPlayerJoin,
-  isHost
+  RPC,
 } from "playroomkit";
 import { Card } from '@/components/Card';
 import { useNotification } from '@/components/Notification';
-import { GameState, PlayedCardData, BaseGameLogic } from '@/game/BaseGameLogic';
+import { GameState, BaseGameLogic } from '@/game/BaseGameLogic';
 import { selectGameMode, createGameLogic, GameMode } from '@/game/GameModeSelector';
 import { detectDevice, DeviceType } from '@/utils/deviceDetection';
 import { DesktopGameUI } from '@/components/DesktopGameUI';
@@ -21,164 +21,130 @@ import { DesktopGameUI } from '@/components/DesktopGameUI';
 // ===== MAIN GAME COMPONENT =====
 const GameApp: React.FC = () => {
   const players = usePlayersList();
-  const [gameLogic, setGameLogic] = useState<BaseGameLogic | null>(null);
-  const [gameMode, setGameMode] = useState<GameMode | null>(null);
-  const [gameState, setGameState] = useMultiplayerState<GameState | null>("gameState", null);
-  const [playedCards, setPlayedCards] = useMultiplayerState<PlayedCardData[]>("playedCards", []);
-  const [currentTurn, setCurrentTurn] = useMultiplayerState<number>("currentTurn", 0);
+  // Single shared state object — all clients render from this
+  const [gameState, setGameState] = useMultiplayerState<GameState | null>("game", null);
   const [deviceType, setDeviceType] = useState<DeviceType>('desktop');
-  const [notifications, setNotifications] = useState<Array<{ message: string; type: string }>>([]);
-
   const { notification, showNotification } = useNotification();
   const currentPlayer = myPlayer();
-  const isGameHost = isHost();
+  const amHost = isHost();
+
+  // Refs to avoid stale closures in RPC handler and timers
+  const gameLogicRef = useRef<BaseGameLogic | null>(null);
+  const gameStateRef = useRef<GameState | null>(null);
+  const setGameStateRef = useRef(setGameState);
+  const resolveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  useEffect(() => { setGameStateRef.current = setGameState; }, [setGameState]);
 
   // Detect device on mount and on resize
   useEffect(() => {
-    const updateDevice = () => {
-      setDeviceType(detectDevice());
-    };
-
+    const updateDevice = () => setDeviceType(detectDevice());
     updateDevice();
     window.addEventListener('resize', updateDevice);
     return () => window.removeEventListener('resize', updateDevice);
   }, []);
 
-  // Determine game mode and initialize game logic for ALL players
+  // Create game logic instance once we have enough players
   useEffect(() => {
-    if (players.length > 0 && !gameLogic) {
-      // Select appropriate game mode based on player count
+    if (players.length >= 2 && !gameLogicRef.current) {
       const mode = selectGameMode(players.length);
-      
-      if (!mode) {
-        showNotification(
-          `Invalid player count (${players.length}). Supported: 2-4 players.`,
-          "ERROR" as any
-        );
-        return;
-      }
-
-      try {     
-        setGameMode(mode);
-        const logic = createGameLogic(players, mode);
-        setGameLogic(logic);
-      } catch (error) {
-        console.error("Failed to initialize game logic:", error);
-        showNotification(
-          `Game mode "${mode}" is not yet implemented`,
-          "ERROR" as any
-        );
+      if (mode) {
+        try {
+          const logic = createGameLogic(players, mode);
+          gameLogicRef.current = logic;
+        } catch (error) {
+          console.error("Failed to create game logic:", error);
+        }
       }
     }
-  }, [players.length, gameLogic, showNotification]);
+  }, [players.length]);
 
-  // Initialize the game when host is ready
+  // Register RPC handler for card plays
+  // All clients register, but only the host processes (via RPC.Mode.HOST on caller side)
   useEffect(() => {
-    if (isGameHost && gameLogic && (!gameState || !gameState.gameStarted)) {
+    RPC.register('playCard', async (data: { cardId: string }, caller: any) => {
+      // Only host should process
+      if (!isHost()) return;
+
+      const logic = gameLogicRef.current;
+      const currentState = gameStateRef.current;
+      if (!logic || !currentState || currentState.phase !== 'playing') return;
+
+      // Load latest shared state into logic engine
+      logic.loadState(currentState);
+
+      const newState = logic.playCard(caller.id, data.cardId);
+      if (!newState) return;
+
+      // Push new state to all clients (reliable = true for guaranteed delivery)
+      setGameStateRef.current(newState, true);
+
+      // If round just completed, schedule resolution after visual delay
+      if (newState.phase === 'round_complete') {
+        if (resolveTimerRef.current) clearTimeout(resolveTimerRef.current);
+        resolveTimerRef.current = setTimeout(() => {
+          const latestState = gameStateRef.current;
+          if (!latestState || latestState.phase !== 'round_complete') return;
+
+          const latestLogic = gameLogicRef.current;
+          if (!latestLogic) return;
+
+          latestLogic.loadState(latestState);
+          const resolvedState = latestLogic.resolveRound();
+          setGameStateRef.current(resolvedState, true);
+        }, 2500); // 2.5s delay so all clients see played cards + winner highlight
+      }
+
+      return "ok";
+    });
+
+    return () => {
+      if (resolveTimerRef.current) clearTimeout(resolveTimerRef.current);
+    };
+  }, []);
+
+  // Host initializes game
+  useEffect(() => {
+    if (amHost && players.length >= 2 && !gameState) {
+      const logic = gameLogicRef.current;
+      if (!logic) return;
+
       const timer = setTimeout(() => {
-        gameLogic.initializeGame().then(() => {
-          const newState = gameLogic.getGameState();
-          setGameState(newState);
-          
-          // Show notifications from game logic
-          const notifications = gameLogic.getNotifications();
-          notifications.forEach((notif: any) => {
-            showNotification(notif.message, notif.type as any);
-          });
-        });
-      }, 1001);
+        const initialState = logic.initializeGame();
+        setGameState(initialState, true);
+      }, 1500);
+
       return () => clearTimeout(timer);
     }
-  }, [isGameHost, gameLogic, gameState?.gameStarted, setGameState, showNotification]);
+  }, [amHost, players.length, gameState, setGameState]);
 
-  // Sync local gameLogic with shared multiplayer state
-  useEffect(() => {
-    if (gameLogic && gameState) {
-      gameLogic.syncGameState(gameState);
-    }
-  }, [gameLogic, gameState]);
-
-  useEffect(() => {
-    if (gameLogic && playedCards) {
-      gameLogic.syncPlayedCards(playedCards);
-    }
-  }, [gameLogic, playedCards]);
-
-  useEffect(() => {
-    if (gameLogic) {
-      gameLogic.syncCurrentTurn(currentTurn);
-    }
-  }, [gameLogic, currentTurn]);
-
-  // Handle card play
+  // Handle card play from UI — sends RPC to host
   const handleCardPlay = useCallback((card: Card) => {
-    if (!gameLogic || !currentPlayer || !gameState) {
-      showNotification("Game is not ready", "WARNING" as any);
+    if (!currentPlayer || !gameState) return;
+
+    if (gameState.phase !== 'playing') {
+      showNotification("Wait for the round to resolve", "WARNING" as any);
       return;
     }
 
     const playerIndex = players.findIndex(p => p.id === currentPlayer.id);
-    if (playerIndex !== currentTurn) {
+    if (playerIndex !== gameState.currentTurnPlayerIndex) {
       showNotification("It's not your turn!", "WARNING" as any);
       return;
     }
 
-    const success = gameLogic.playCard(currentPlayer.id, card);
-    if (success) {
-      // Update local state
-      const newPlayedCards = gameLogic.getPlayedCards();
-      const newGameState = gameLogic.getGameState();
+    // Send card play to host via RPC
+    RPC.call('playCard', { cardId: card.id }, RPC.Mode.HOST);
+  }, [currentPlayer, gameState, players, showNotification]);
 
-      setPlayedCards(newPlayedCards);
-      setGameState(newGameState);
-      setCurrentTurn((currentTurn + 1) % players.length);
-
-      // Show notifications
-      const notifications = gameLogic.getNotifications();
-      notifications.forEach((notif: any) => {
-        showNotification(notif.message, notif.type as any);
-      });
-
-      // Check if round is complete and resolve if needed
-      if (gameLogic.isRoundComplete()) {
-        setGameState({ ...newGameState, isResolvingRound: true });
-        setTimeout(() => {
-          gameLogic.resolveRound().then(() => {
-            const updatedState = gameLogic.getGameState();
-            setGameState(updatedState);
-            setPlayedCards(gameLogic.getPlayedCards());
-            
-            // Set next turn
-            if (!updatedState.gameOver) {
-              const winnerIndex = players.findIndex(p => p.id === updatedState.roundWinner);
-              setCurrentTurn(winnerIndex);
-            }
-
-            // Show notifications
-            const notifications = gameLogic.getNotifications();
-            notifications.forEach((notif: any) => {
-              showNotification(notif.message, notif.type as any);
-            });
-          });
-        }, 1000);
-      }
-    } else {
-      // Show error notifications
-      const notifications = gameLogic.getNotifications();
-      notifications.forEach((notif: any) => {
-        showNotification(notif.message, notif.type as any);
-      });
-    }
-  }, [gameLogic, currentPlayer, gameState, currentTurn, players, setPlayedCards, setGameState, setCurrentTurn, showNotification]);
-
-  // Handle player joining
+  // Handle player join/quit
   useEffect(() => {
-    const unsubscribe = onPlayerJoin((playerState) => {
+    const unsubscribe = onPlayerJoin((playerState: any) => {
       playerState.onQuit(() => {
-        showNotification(`Player left the game!`, "ERROR" as any);
+        showNotification("Player left the game!", "ERROR" as any);
       });
     });
-
     return unsubscribe;
   }, [showNotification]);
 
@@ -195,12 +161,7 @@ const GameApp: React.FC = () => {
           gameState={gameState}
           players={players}
           currentPlayerId={currentPlayer.id}
-          isGameHost={isGameHost}
-          playedCards={playedCards}
-          currentTurnIndex={currentTurn}
           onCardPlay={handleCardPlay}
-          notifications={notifications}
-          gameLogic={gameLogic}
         />
       </div>
     );
