@@ -1,6 +1,7 @@
 import { PlayerState } from "playroomkit";
 import { BaseGameLogic } from './BaseGameLogic';
 import { ThreeForAllGameLogic } from './modes/ThreeForAllGameLogic';
+import { OneVOneGameLogic } from './modes/OneVOneGameLogic';
 
 /**
  * Game mode enumeration
@@ -85,8 +86,7 @@ export const createGameLogic = (players: PlayerState[], mode: GameMode): BaseGam
       return new ThreeForAllGameLogic(players);
     
     case GameMode.ONE_ON_ONE:
-      // TODO: Implement OneOnOneGameLogic when ready
-      throw new Error('1v1 mode not yet implemented');
+      return new OneVOneGameLogic(players);
     
     case GameMode.TWO_VS_TWO:
       // TODO: Implement TwoVsTwoGameLogic when ready

@@ -16,7 +16,7 @@ import {
 import { Card } from '@/components/Card';
 import { useNotification } from '@/components/Notification';
 import { GameState, BaseGameLogic } from '@/game/BaseGameLogic';
-import { selectGameMode, createGameLogic } from '@/game/GameModeSelector';
+import { GameMode, getGameModeConfig, createGameLogic } from '@/game/GameModeSelector';
 import { detectDevice, DeviceType } from '@/utils/deviceDetection';
 import { DesktopGameUI } from '@/components/DesktopGameUI';
 import { MobileGameUI } from '@/components/MobileGameUI';
@@ -27,10 +27,11 @@ import { DESIGN, getPlayerName, getPlayerColor } from '@/components/shared/gameD
 type AppPhase = 'hero' | 'connecting' | 'connected';
 
 // ===== CONNECTED APP (LOBBY + GAME) =====
-const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ username, avatarColor }) => {
+const ConnectedApp: React.FC<{ username: string; avatarColor: string; gameMode?: GameMode }> = ({ username, avatarColor, gameMode }) => {
   const players = usePlayersList(true);
   const [gameState, setGameState] = useMultiplayerState<GameState | null>("game", null);
   const [hostId, setHostId] = useMultiplayerState<string | null>("hostId", null);
+  const [sharedMode, setSharedMode] = useMultiplayerState<string | null>("gameMode", null);
   const [deviceType, setDeviceType] = useState<DeviceType>('desktop');
   const { notification, showNotification } = useNotification();
   const currentPlayer = myPlayer();
@@ -58,12 +59,20 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
     }
   }, [currentPlayer, username, avatarColor]);
 
-  // Host broadcasts their id so all clients know who the host is
+  // Host broadcasts their id and game mode so all clients know
   useEffect(() => {
     if (amHost && currentPlayer) {
       setHostId(currentPlayer.id, true);
+      if (gameMode) {
+        setSharedMode(gameMode, true);
+      }
     }
-  }, [amHost, currentPlayer, setHostId]);
+  }, [amHost, currentPlayer, setHostId, gameMode, setSharedMode]);
+
+  // Determine the active mode (host sets it, joiners read it)
+  const activeMode = (gameMode || sharedMode || GameMode.THREE_FOR_ALL) as GameMode;
+  const modeConfig = getGameModeConfig(activeMode);
+  const maxPlayers = modeConfig?.maxPlayers ?? 3;
 
   // Get room code
   useEffect(() => {
@@ -166,13 +175,12 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
   // Host starts game manually from lobby
   const handleStartGame = useCallback(() => {
     if (!amHost) return;
-    const mode = selectGameMode(players.length);
-    if (!mode) {
+    if (players.length < (modeConfig?.minPlayers ?? 2)) {
       showNotification("Need more players to start!", "WARNING" as any);
       return;
     }
     try {
-      const logic = createGameLogic(players, mode);
+      const logic = createGameLogic(players, activeMode);
       gameLogicRef.current = logic;
       const initialState = logic.initializeGame();
       setGameState(initialState, true);
@@ -180,7 +188,7 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
       console.error("Failed to start game:", error);
       showNotification("Failed to start game", "ERROR" as any);
     }
-  }, [amHost, players, setGameState, showNotification]);
+  }, [amHost, players, setGameState, showNotification, activeMode, modeConfig]);
 
   // Handle player join/quit
   useEffect(() => {
@@ -204,8 +212,8 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
 
   // ==================== LOBBY VIEW ====================
   if (!gameState) {
-    const canStart = selectGameMode(players.length) !== null;
-    const needed = 3 - players.length;
+    const canStart = players.length >= (modeConfig?.minPlayers ?? 2);
+    const needed = maxPlayers - players.length;
 
     return (
       <LobbyWrapper>
@@ -213,7 +221,7 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
         <LobbyContainer>
           <LobbyHeader>
             <LobbyTitle>BRISCOLA</LobbyTitle>
-            <LobbySubtitle>Waiting Room</LobbySubtitle>
+            <LobbySubtitle>{activeMode === GameMode.ONE_ON_ONE ? '1 v 1' : '3 for All'} • Waiting Room</LobbySubtitle>
           </LobbyHeader>
 
           <RoomCodeCard>
@@ -233,7 +241,6 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
                   value={`${window.location.origin}#r=${roomCode}`}
                   size={160}
                   level="H"
-                  includeMargin={true}
                   fgColor="#ffffff"
                   bgColor="#1a1a1a"
                 />
@@ -242,7 +249,7 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
           </RoomCodeCard>
 
           <PlayersSection>
-            <PlayersHeader>Players ({players.length}/3)</PlayersHeader>
+            <PlayersHeader>Players ({players.length}/{maxPlayers})</PlayersHeader>
             {players.map((player) => {
               const name = getPlayerName(player);
               const color = getPlayerColor(player);
@@ -262,7 +269,7 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string }> = ({ use
                 </PlayerRow>
               );
             })}
-            {Array.from({ length: Math.max(0, 3 - players.length) }).map((_, i) => (
+            {Array.from({ length: Math.max(0, maxPlayers - players.length) }).map((_, i) => (
               <PlayerRow key={`empty-${i}`} style={{ opacity: 0.4 }}>
                 <WaitingDot>?</WaitingDot>
                 <PlayerNameText style={{ color: DESIGN.colors.text.tertiary }}>
@@ -640,6 +647,7 @@ export default function Home() {
   const [phase, setPhase] = useState<AppPhase>('hero');
   const [username, setUsername] = useState('');
   const [avatarColor, setAvatarColor] = useState('');
+  const [gameMode, setGameMode] = useState<GameMode | undefined>(undefined);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connectingText, setConnectingText] = useState('Connecting');
   const [initialRoomCode, setInitialRoomCode] = useState<string | undefined>(undefined);
@@ -655,11 +663,16 @@ export default function Home() {
     }
   }, []);
 
-  const connect = useCallback(async (name: string, color: string, roomCode?: string) => {
+  const connect = useCallback(async (name: string, color: string, roomCode?: string, mode?: GameMode) => {
     setUsername(name);
     setAvatarColor(color);
+    if (mode) setGameMode(mode);
     setConnectingText(roomCode ? 'Joining game' : 'Creating game');
     setPhase('connecting');
+
+    // Determine max players from mode (host knows), joiners default to max
+    const modeConfig = mode ? getGameModeConfig(mode) : undefined;
+    const maxPlayers = modeConfig?.maxPlayers ?? 3;
 
     try {
       if (typeof window !== 'undefined') {
@@ -668,7 +681,7 @@ export default function Home() {
       await insertCoin({
         skipLobby: true,
         ...(roomCode ? { roomCode } : {}),
-        maxPlayersPerRoom: 3,
+        maxPlayersPerRoom: maxPlayers,
       });
       setPhase('connected');
     } catch (error: any) {
@@ -685,8 +698,8 @@ export default function Home() {
     }
   }, []);
 
-  const handleCreateGame = useCallback((name: string, color: string) => {
-    connect(name, color);
+  const handleCreateGame = useCallback((name: string, color: string, mode: GameMode) => {
+    connect(name, color, undefined, mode);
   }, [connect]);
 
   const handleJoinGame = useCallback((name: string, color: string, roomCode: string) => {
@@ -728,5 +741,5 @@ export default function Home() {
   }
 
   // ===== CONNECTED PHASE =====
-  return <ConnectedApp username={username} avatarColor={avatarColor} />;
+  return <ConnectedApp username={username} avatarColor={avatarColor} gameMode={gameMode} />;
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { DESIGN } from '@/components/shared/gameDesign';
+import { GameMode } from '@/game/GameModeSelector';
 import packageJson from '../../package.json';
 
 // ===== CONSTANTS =====
@@ -27,9 +28,27 @@ const HERO_CARDS = [
   { src: '/assets/cards/sword/sword_1.png', rotation: 20, alt: 'Ace of Swords' },
 ];
 
+// ===== GAME MODE OPTIONS =====
+const GAME_MODE_OPTIONS = [
+  {
+    mode: GameMode.ONE_ON_ONE,
+    label: '1 v 1',
+    description: 'Head-to-head duel',
+    players: '2 players',
+    icon: '⚔️',
+  },
+  {
+    mode: GameMode.THREE_FOR_ALL,
+    label: '3 for All',
+    description: 'Free-for-all chaos',
+    players: '3 players',
+    icon: '👑',
+  },
+];
+
 // ===== INTERFACES =====
 export interface HeroScreenProps {
-  onCreateGame: (username: string, avatarColor: string) => void;
+  onCreateGame: (username: string, avatarColor: string, mode: GameMode) => void;
   onJoinGame: (username: string, avatarColor: string, roomCode: string) => void;
   error?: string | null;
   onDismissError?: () => void;
@@ -265,6 +284,66 @@ const ErrorBanner = styled.div`
   box-shadow: 0 4px 20px rgba(255, 107, 157, 0.15);
 `;
 
+const ModeGrid = styled.div`
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  animation: ${contentFadeIn} 200ms ease-out;
+`;
+
+const ModeCard = styled.button`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 12px;
+  border-radius: ${DESIGN.radius.containers};
+  border: 1.5px solid ${DESIGN.colors.surfaces.elevated};
+  background: ${DESIGN.colors.surfaces.containers};
+  cursor: pointer;
+  transition: all 200ms;
+  color: ${DESIGN.colors.text.primary};
+
+  &:hover {
+    border-color: ${DESIGN.colors.accents.green};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px ${DESIGN.colors.accents.green}20;
+  }
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const ModeIcon = styled.span`
+  font-size: 28px;
+  line-height: 1;
+`;
+
+const ModeLabel = styled.span`
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+`;
+
+const ModeDesc = styled.span`
+  font-size: 11px;
+  color: ${DESIGN.colors.text.secondary};
+  font-weight: 500;
+`;
+
+const ModePlayers = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: ${DESIGN.colors.accents.cyan};
+  background: ${DESIGN.colors.accents.cyan}18;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 2px;
+`;
+
 // ===== COMPONENT =====
 export const HeroScreen: React.FC<HeroScreenProps> = ({
   onCreateGame,
@@ -276,6 +355,7 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
   const [username, setUsername] = useState('');
   const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[1]); // green default
   const [showJoin, setShowJoin] = useState(!!initialRoomCode);
+  const [showModeSelect, setShowModeSelect] = useState(false);
   const [roomCode, setRoomCode] = useState(initialRoomCode || '');
   const [cardsVisible, setCardsVisible] = useState(false);
 
@@ -305,9 +385,13 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
 
   const handleCreate = () => {
     if (!isValid) return;
+    setShowModeSelect(true);
+  };
+
+  const handleModeSelect = (mode: GameMode) => {
     const trimmedName = username.trim();
     saveToStorage(trimmedName, avatarColor);
-    onCreateGame(trimmedName, avatarColor);
+    onCreateGame(trimmedName, avatarColor, mode);
   };
 
   const handleJoin = () => {
@@ -379,7 +463,27 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
           ))}
         </ColorRow>
 
-        {!showJoin ? (
+        {showModeSelect ? (
+          <>
+            <InputLabel>Select Game Mode</InputLabel>
+            <ModeGrid>
+              {GAME_MODE_OPTIONS.map(opt => (
+                <ModeCard key={opt.mode} onClick={() => handleModeSelect(opt.mode)}>
+                  <ModeIcon>{opt.icon}</ModeIcon>
+                  <ModeLabel>{opt.label}</ModeLabel>
+                  <ModeDesc>{opt.description}</ModeDesc>
+                  <ModePlayers>{opt.players}</ModePlayers>
+                </ModeCard>
+              ))}
+            </ModeGrid>
+            <SecondaryButton
+              onClick={() => setShowModeSelect(false)}
+              style={{ width: '100%' }}
+            >
+              BACK
+            </SecondaryButton>
+          </>
+        ) : !showJoin ? (
           <ButtonRow>
             <PrimaryButton onClick={handleCreate} disabled={!isValid}>
               CREATE GAME

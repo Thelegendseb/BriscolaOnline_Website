@@ -633,65 +633,27 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
       {/* Center Play Area */}
       <PlayArea>
         <PlayAreaSlots>
-          {/* Slot 1 */}
-          <PlaySlot
-            isEmpty={playedCards.length < 1}
-            isWinner={roundWinnerId === playedCards[0]?.playerId}
-            isFadingOut={isFadingOut}
-          >
-            {playedCards.length > 0 && (
-              <PlayedCardWrapper>
-                <CardComponent
-                  card={playedCards[0].card}
-                  onClick={() => {}}
-                  transform=""
-                  colors={cardColors}
-                  fillContainer
-                />
-              </PlayedCardWrapper>
-            )}
-            <PlaySlotLabel>{getSlotPlayerName(0)}</PlaySlotLabel>
-          </PlaySlot>
-
-          {/* Slot 2 */}
-          <PlaySlot
-            isEmpty={playedCards.length < 2}
-            isWinner={roundWinnerId === playedCards[1]?.playerId}
-            isFadingOut={isFadingOut}
-          >
-            {playedCards.length > 1 && (
-              <PlayedCardWrapper>
-                <CardComponent
-                  card={playedCards[1].card}
-                  onClick={() => {}}
-                  transform=""
-                  colors={cardColors}
-                  fillContainer
-                />
-              </PlayedCardWrapper>
-            )}
-            <PlaySlotLabel>{getSlotPlayerName(1)}</PlaySlotLabel>
-          </PlaySlot>
-
-          {/* Slot 3 */}
-          <PlaySlot
-            isEmpty={playedCards.length < 3}
-            isWinner={roundWinnerId === playedCards[2]?.playerId}
-            isFadingOut={isFadingOut}
-          >
-            {playedCards.length > 2 && (
-              <PlayedCardWrapper>
-                <CardComponent
-                  card={playedCards[2].card}
-                  onClick={() => {}}
-                  transform=""
-                  colors={cardColors}
-                  fillContainer
-                />
-              </PlayedCardWrapper>
-            )}
-            <PlaySlotLabel>{getSlotPlayerName(2)}</PlaySlotLabel>
-          </PlaySlot>
+          {players.map((_, slotIndex) => (
+            <PlaySlot
+              key={slotIndex}
+              isEmpty={playedCards.length < slotIndex + 1}
+              isWinner={roundWinnerId === playedCards[slotIndex]?.playerId}
+              isFadingOut={isFadingOut}
+            >
+              {playedCards.length > slotIndex && (
+                <PlayedCardWrapper>
+                  <CardComponent
+                    card={playedCards[slotIndex].card}
+                    onClick={() => {}}
+                    transform=""
+                    colors={cardColors}
+                    fillContainer
+                  />
+                </PlayedCardWrapper>
+              )}
+              <PlaySlotLabel>{getSlotPlayerName(slotIndex)}</PlaySlotLabel>
+            </PlaySlot>
+          ))}
         </PlayAreaSlots>
       </PlayArea>
 
