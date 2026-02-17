@@ -112,11 +112,16 @@ const CardFanContainer = styled.div`
 const FanCard = styled.div`
   position: absolute;
   bottom: 0;
-  width: clamp(55px, 11vw, 90px);
+  width: clamp(60px, 12vw, 100px);
+  height: clamp(100px, 20vh, 180px);
   transform-origin: bottom center;
+  border: 3px solid ${DESIGN.colors.bg.tertiary};
+  border-radius: 12px;
 
   img {
     width: 100%;
+    height: 100%;
+    object-fit: cover;
     border-radius: clamp(4px, 0.8vw, 8px);
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   }
