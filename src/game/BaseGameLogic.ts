@@ -33,6 +33,7 @@ export interface GameState {
   roundWinnerId: string | null;
   finalScores: { [playerId: string]: number };
   gameWinnerId: string | null;
+  lastSwapPlayerId: string | null;
 }
 
 export interface GameConfig {
@@ -66,6 +67,7 @@ export abstract class BaseGameLogic {
       roundWinnerId: null,
       finalScores: {},
       gameWinnerId: null,
+      lastSwapPlayerId: null,
     };
   }
 
@@ -117,6 +119,7 @@ export abstract class BaseGameLogic {
       roundWinnerId: null,
       finalScores: {},
       gameWinnerId: null,
+      lastSwapPlayerId: null,
     };
 
     return this.getState();
@@ -196,6 +199,7 @@ export abstract class BaseGameLogic {
       ...this.state,
       trumpCard: card,
       playerHands: { ...this.state.playerHands, [playerId]: newHand },
+      lastSwapPlayerId: playerId,
     };
 
     return this.getState();

@@ -159,3 +159,16 @@ export const swapGlow = keyframes`
   60% { box-shadow: 0 0 20px 6px rgba(0, 255, 136, 0.3); }
   100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
 `;
+
+// ===== SOUND EFFECTS =====
+/**
+ * Play the card flip sound. Creates a new Audio instance each time
+ * so sounds can stack/overlap when multiple cards are played quickly.
+ */
+export const playCardFlipSound = (): void => {
+  try {
+    const audio = new Audio('/assets/sounds/card_flip.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  } catch {}
+};

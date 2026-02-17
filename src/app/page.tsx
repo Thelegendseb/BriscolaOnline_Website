@@ -196,7 +196,7 @@ const GameApp: React.FC = () => {
   // Desktop UI
   if (deviceType === 'desktop') {
     return (
-      <div style={{ background: 'black', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      <div style={{ background: '#1a1a1a', height: '100vh', width: '100vw', overflow: 'hidden' }}>
         <GlobalStyle />
         <DesktopGameUI
           gameState={gameState}
@@ -213,7 +213,7 @@ const GameApp: React.FC = () => {
 
   // Mobile & Tablet UI
   return (
-    <div style={{ background: 'black', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <div style={{ background: '#1a1a1a', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       <GlobalStyle />
       <MobileGameUI
         gameState={gameState}
@@ -237,7 +237,7 @@ const GlobalStyle = createGlobalStyle`
   body {
     margin: 0;
     padding: 0;
-    background: black;
+    background: #1a1a1a;
     color: #ffffff;
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     overflow: hidden;
@@ -247,6 +247,7 @@ const GlobalStyle = createGlobalStyle`
   html {
     height: 100vh;
     width: 100vw;
+    overflow: hidden;
   }
 `;
 
@@ -256,7 +257,7 @@ const LoadingScreen = styled.div`
   align-items: center;
   height: 100vh;
   width: 100vw;
-  background: #000000;
+  background: #1a1a1a;
   color: #ffffff;
   font-size: 1.5rem;
   position: fixed;

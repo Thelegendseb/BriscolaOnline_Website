@@ -14,6 +14,7 @@ import {
   getPlayerName,
   getPlayerPhoto,
   canSwapWithTrump,
+  playCardFlipSound,
 } from '@/components/shared/gameDesign';
 
 // ===== STYLED COMPONENTS =====
@@ -54,12 +55,17 @@ const LeftSidebar = styled.div`
   }
 `;
 
-const OpponentCard = styled.div<{ isCurrentPlayer?: boolean; isActive?: boolean }>`
+const OpponentCard = styled.div<{ isCurrentPlayer?: boolean; isActive?: boolean; isSwapHighlighted?: boolean }>`
   background: ${DESIGN.colors.surfaces.containers};
   border-radius: ${DESIGN.radius.containers};
   padding: ${DESIGN.spacing.md};
   transition: background-color 200ms ease-out, border 200ms ease-out;
-  border: 1px solid ${props => props.isActive ? DESIGN.colors.accents.green : 'transparent'};
+  border: 1px solid ${props => props.isSwapHighlighted ? DESIGN.colors.accents.green : props.isActive ? DESIGN.colors.accents.green : 'transparent'};
+  position: relative;
+
+  ${props => props.isSwapHighlighted && css`
+    animation: ${swapGlow} 1200ms ease-out;
+  `}
 
   &:hover {
     background: ${DESIGN.colors.surfaces.elevated};
@@ -334,13 +340,13 @@ const HandCardSlot = styled.div<{ entranceDelay?: number }>`
 
 const SwapBadge = styled.button`
   position: absolute;
-  top: -8px;
+  top: -10px;
   right: -8px;
   background: ${DESIGN.colors.accents.green};
   color: ${DESIGN.colors.bg.primary};
   border: 2px solid ${DESIGN.colors.bg.primary};
   border-radius: 10px;
-  padding: 2px 8px;
+  padding: 6px 8px;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -366,6 +372,24 @@ const TrumpFlashOverlay = styled.div`
   pointer-events: none;
   animation: ${swapGlow} 1200ms ease-out;
   border: 3px solid rgba(0, 255, 136, 0.6);
+`;
+
+const SwapNotificationBanner = styled.div`
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: ${DESIGN.colors.surfaces.elevated};
+  border: 1px solid ${DESIGN.colors.accents.green};
+  border-radius: ${DESIGN.radius.buttons};
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${DESIGN.colors.accents.green};
+  z-index: 2000;
+  white-space: nowrap;
+  animation: ${cardEntrance} 200ms ease-out;
+  box-shadow: 0 4px 20px rgba(0, 255, 136, 0.15);
 `;
 
 
@@ -489,6 +513,28 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
   const [trumpSwapped, setTrumpSwapped] = useState(false);
   const prevTrumpIdRef = useRef(gameState.trumpCard?.id);
 
+  // Swap player highlight
+  const [swapHighlightId, setSwapHighlightId] = useState<string | null>(null);
+  const [swapNotification, setSwapNotification] = useState<string | null>(null);
+  const prevSwapPlayerRef = useRef(gameState.lastSwapPlayerId);
+
+  useEffect(() => {
+    const newSwapper = gameState.lastSwapPlayerId;
+    if (newSwapper && newSwapper !== prevSwapPlayerRef.current) {
+      setSwapHighlightId(newSwapper);
+      const swapPlayer = players.find(p => p.id === newSwapper);
+      const name = swapPlayer ? getPlayerName(swapPlayer) : 'A player';
+      setSwapNotification(`${newSwapper === currentPlayerId ? 'You' : name} swapped with the trump!`);
+      const timer = setTimeout(() => {
+        setSwapHighlightId(null);
+        setSwapNotification(null);
+      }, 2000);
+      prevSwapPlayerRef.current = newSwapper;
+      return () => clearTimeout(timer);
+    }
+    prevSwapPlayerRef.current = newSwapper;
+  }, [gameState.lastSwapPlayerId, currentPlayerId, players]);
+
   useEffect(() => {
     if (prevTrumpIdRef.current !== undefined &&
         gameState.trumpCard?.id !== prevTrumpIdRef.current) {
@@ -499,6 +545,15 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
     }
     prevTrumpIdRef.current = gameState.trumpCard?.id;
   }, [gameState.trumpCard?.id]);
+
+  // Card flip sound effect
+  const prevPlayedCountRef = useRef(gameState.playedCards.length);
+  useEffect(() => {
+    if (gameState.playedCards.length > prevPlayedCountRef.current) {
+      playCardFlipSound();
+    }
+    prevPlayedCountRef.current = gameState.playedCards.length;
+  }, [gameState.playedCards.length]);
 
   // ===== FADE OUT ANIMATION =====
   useEffect(() => {
@@ -559,6 +614,12 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
 
   return (
     <GameContainer>
+      {/* Swap Notification Banner */}
+      {swapNotification && (
+        <SwapNotificationBanner key={gameState.lastSwapPlayerId}>
+          {swapNotification}
+        </SwapNotificationBanner>
+      )}
       {/* Left Sidebar - All Players in Fixed Order */}
       <LeftSidebar>
         {players.map((player, index) => {
@@ -566,7 +627,7 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
           const isActive = currentTurnIndex === index;
           
           return (
-            <OpponentCard key={player.id} isCurrentPlayer={isCurrentPlayer} isActive={isActive}>
+            <OpponentCard key={player.id} isCurrentPlayer={isCurrentPlayer} isActive={isActive} isSwapHighlighted={swapHighlightId === player.id}>
               <OpponentHeader>
                 <OpponentAvatar 
                   isActive={isActive}
