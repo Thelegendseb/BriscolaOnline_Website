@@ -12,6 +12,7 @@ import {
   getPlayerInitials,
   getPlayerName,
   getPlayerPhoto,
+  getPlayerColor,
   canSwapWithTrump,
   playCardFlipSound,
 } from '@/components/shared/gameDesign';
@@ -121,12 +122,12 @@ const PlayerPill = styled.div<{ isActive?: boolean; isYou?: boolean; isSwapHighl
   `}
 `;
 
-const PlayerPillAvatar = styled.div<{ isActive?: boolean; backgroundImage?: string }>`
+const PlayerPillAvatar = styled.div<{ isActive?: boolean; backgroundImage?: string; avatarColor?: string }>`
   width: 28px;
   height: 28px;
   min-width: 28px;
   border-radius: 50%;
-  background: ${props => props.backgroundImage ? `url(${props.backgroundImage})` : `linear-gradient(135deg, ${DESIGN.colors.accents.green}, ${DESIGN.colors.accents.cyan})`};
+  background: ${props => props.backgroundImage ? `url(${props.backgroundImage})` : props.avatarColor || `linear-gradient(135deg, ${DESIGN.colors.accents.green}, ${DESIGN.colors.accents.cyan})`};
   background-size: cover;
   background-position: center;
   display: flex;
@@ -610,6 +611,7 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
               <PlayerPillAvatar
                 isActive={isActive}
                 backgroundImage={photo}
+                avatarColor={getPlayerColor(player)}
               >
                 {!photo && getPlayerInitials(player.id, players)}
               </PlayerPillAvatar>

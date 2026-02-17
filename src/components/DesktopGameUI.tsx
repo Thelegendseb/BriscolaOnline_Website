@@ -13,6 +13,7 @@ import {
   getPlayerInitials,
   getPlayerName,
   getPlayerPhoto,
+  getPlayerColor,
   canSwapWithTrump,
   playCardFlipSound,
 } from '@/components/shared/gameDesign';
@@ -79,12 +80,12 @@ const OpponentHeader = styled.div`
   margin-bottom: ${DESIGN.spacing.md};
 `;
 
-const OpponentAvatar = styled.div<{ isActive?: boolean; backgroundImage?: string }>`
+const OpponentAvatar = styled.div<{ isActive?: boolean; backgroundImage?: string; avatarColor?: string }>`
   width: 48px;
   height: 48px;
   min-width: 48px;
   border-radius: 50%;
-  background: ${props => props.backgroundImage ? `url(${props.backgroundImage})` : `linear-gradient(135deg, ${DESIGN.colors.accents.green}, ${DESIGN.colors.accents.cyan})`};
+  background: ${props => props.backgroundImage ? `url(${props.backgroundImage})` : props.avatarColor || `linear-gradient(135deg, ${DESIGN.colors.accents.green}, ${DESIGN.colors.accents.cyan})`};
   background-size: cover;
   background-position: center;
   display: flex;
@@ -632,6 +633,7 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
                 <OpponentAvatar 
                   isActive={isActive}
                   backgroundImage={getPlayerPhoto(player)}
+                  avatarColor={getPlayerColor(player)}
                 >
                   {!getPlayerPhoto(player) && getPlayerInitials(player.id, players)}
                 </OpponentAvatar>

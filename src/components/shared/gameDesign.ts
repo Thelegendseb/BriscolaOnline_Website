@@ -106,6 +106,9 @@ export const getPlayerInitials = (playerId: string, players: PlayerState[]): str
 };
 
 export const getPlayerName = (player: PlayerState): string => {
+  // With skipLobby, name is stored in player state
+  const displayName = player.getState?.('displayName');
+  if (displayName) return displayName;
   const profile = player.getProfile();
   return profile?.name || 'Player';
 };
@@ -113,6 +116,10 @@ export const getPlayerName = (player: PlayerState): string => {
 export const getPlayerPhoto = (player: PlayerState): string | undefined => {
   const profile = player.getProfile();
   return profile?.photo;
+};
+
+export const getPlayerColor = (player: PlayerState): string => {
+  return player.getState?.('avatarColor') || DESIGN.colors.accents.green;
 };
 
 // ===== SWAP MECHANICS =====
