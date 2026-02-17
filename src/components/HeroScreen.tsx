@@ -76,13 +76,16 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100vh;
+  justify-content: safe center;
+  min-height: 100vh;
+  min-height: 100dvh;
   width: 100vw;
   background: ${DESIGN.colors.bg.secondary};
-  overflow: hidden;
-  padding: 20px;
-  gap: clamp(16px, 3vh, 28px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 20px env(safe-area-inset-bottom, 20px);
+  gap: clamp(12px, 2.5vh, 24px);
+  -webkit-overflow-scrolling: touch;
 `;
 
 const TitleSection = styled.div`
@@ -120,8 +123,8 @@ const VersionBadge = styled.span`
 
 const CardFanContainer = styled.div`
   position: relative;
-  width: clamp(200px, 50vw, 320px);
-  height: clamp(120px, 22vh, 200px);
+  width: clamp(180px, 45vw, 320px);
+  height: clamp(80px, 15vh, 180px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -131,8 +134,8 @@ const CardFanContainer = styled.div`
 const FanCard = styled.div`
   position: absolute;
   bottom: 0;
-  width: clamp(60px, 12vw, 100px);
-  height: clamp(100px, 20vh, 180px);
+  width: clamp(50px, 10vw, 100px);
+  height: clamp(75px, 14vh, 160px);
   transform-origin: bottom center;
   border: 3px solid ${DESIGN.colors.bg.tertiary};
   border-radius: 12px;
@@ -150,10 +153,11 @@ const FormSection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
   max-width: 360px;
   animation: ${contentFadeIn} 600ms ease-out 400ms both;
+  flex-shrink: 0;
 `;
 
 const InputLabel = styled.label`
@@ -167,7 +171,7 @@ const InputLabel = styled.label`
 
 const Input = styled.input`
   width: 100%;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: ${DESIGN.radius.buttons};
   border: 1.5px solid ${DESIGN.colors.surfaces.elevated};
   background: ${DESIGN.colors.surfaces.containers};
@@ -194,8 +198,8 @@ const ColorRow = styled.div`
 `;
 
 const ColorDot = styled.button<{ color: string; isSelected: boolean }>`
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: ${p => p.color};
   border: 3px solid ${p => p.isSelected ? '#ffffff' : 'transparent'};
@@ -217,7 +221,7 @@ const ButtonRow = styled.div`
 
 const PrimaryButton = styled.button`
   flex: 1;
-  padding: 14px 20px;
+  padding: 12px 16px;
   border-radius: ${DESIGN.radius.buttons};
   border: none;
   font-size: 14px;
@@ -235,7 +239,7 @@ const PrimaryButton = styled.button`
 
 const SecondaryButton = styled.button`
   flex: 1;
-  padding: 14px 20px;
+  padding: 12px 16px;
   border-radius: ${DESIGN.radius.buttons};
   border: 1.5px solid ${DESIGN.colors.surfaces.elevated};
   background: ${DESIGN.colors.surfaces.containers};
@@ -296,8 +300,8 @@ const ModeCard = styled.button`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 20px 12px;
+  gap: 4px;
+  padding: 16px 10px;
   border-radius: ${DESIGN.radius.containers};
   border: 1.5px solid ${DESIGN.colors.surfaces.elevated};
   background: ${DESIGN.colors.surfaces.containers};

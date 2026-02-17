@@ -342,10 +342,12 @@ const GlobalStyle = createGlobalStyle`
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     overflow: hidden;
     user-select: none;
+    -webkit-text-size-adjust: 100%;
   }
 
   html {
     height: 100vh;
+    height: 100dvh;
     width: 100vw;
     overflow: hidden;
   }
@@ -355,6 +357,7 @@ const GlobalStyle = createGlobalStyle`
 const GameWrapper = styled.div`
   background: ${DESIGN.colors.bg.secondary};
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
 `;
@@ -376,6 +379,7 @@ const ConnectingWrapper = styled.div`
   align-items: center;
   justify-content: center;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   background: ${DESIGN.colors.bg.secondary};
   gap: 32px;
@@ -415,23 +419,27 @@ const hostPulse = keyframes`
 
 const LobbyWrapper = styled.div`
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   width: 100vw;
   background: ${DESIGN.colors.bg.secondary};
-  overflow: hidden;
-  padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 20px env(safe-area-inset-bottom, 20px);
+  -webkit-overflow-scrolling: touch;
 `;
 
 const LobbyContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: clamp(16px, 3vh, 24px);
   width: 100%;
   max-width: 420px;
   animation: ${lobbyFadeIn} 500ms ease-out;
+  flex-shrink: 0;
 `;
 
 const LobbyHeader = styled.div`
