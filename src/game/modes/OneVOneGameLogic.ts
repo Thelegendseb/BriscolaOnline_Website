@@ -62,6 +62,7 @@ export class OneVOneGameLogic extends BaseGameLogic {
       phase: 'playing',
       deck: newDeck,
       trumpCard,
+      trumpSuit: trumpCard.suit,
       playerHands: hands,
       playerStacks: stacks,
       playedCards: [],
@@ -71,6 +72,7 @@ export class OneVOneGameLogic extends BaseGameLogic {
       finalScores: {},
       gameWinnerId: null,
       lastSwapPlayerId: null,
+      roundHistory: [],
     };
 
     return this.getState();
@@ -107,7 +109,7 @@ export class OneVOneGameLogic extends BaseGameLogic {
     if (newPlayedCards.length === this.players.length) {
       const winnerId = this.evaluateRound(
         newPlayedCards,
-        this.state.trumpCard?.suit || ('coin' as Suit)
+        this.state.trumpSuit || ('coin' as Suit)
       );
 
       this.state = {
@@ -141,6 +143,13 @@ export class OneVOneGameLogic extends BaseGameLogic {
     }
 
     const winnerId = this.state.roundWinnerId;
+
+    // Record round history
+    const historyEntry = {
+      roundNumber: this.state.roundNumber,
+      playedCards: [...this.state.playedCards],
+      winnerId,
+    };
 
     // Award played cards to winner
     const newStacks: { [playerId: string]: Card[] } = {};
@@ -204,6 +213,7 @@ export class OneVOneGameLogic extends BaseGameLogic {
         playedCards: [],
         finalScores: scores,
         gameWinnerId: gameWinner,
+        roundHistory: [...this.state.roundHistory, historyEntry],
       };
     } else {
       const winnerIndex = this.players.findIndex(p => p.id === winnerId);
@@ -218,6 +228,7 @@ export class OneVOneGameLogic extends BaseGameLogic {
         currentTurnPlayerIndex: winnerIndex,
         roundNumber: this.state.roundNumber + 1,
         roundWinnerId: null,
+        roundHistory: [...this.state.roundHistory, historyEntry],
       };
     }
 

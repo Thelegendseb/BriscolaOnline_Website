@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled, { css } from 'styled-components';
 import { CardComponent } from '@/components/Card';
+import { MatchHistoryButton } from '@/components/MatchHistory';
+import { RulesPopup, RulesIcon } from '@/components/RulesPopup';
 import packageJson from '../../package.json';
 import {
   DESIGN,
-  pulseBlue,
+  borderGlow,
+  borderFadeOut,
   fadeOut,
   cardEntrance,
   swapGlow,
   cardColors,
   GameUIProps,
-  getPlayerInitials,
   getPlayerName,
-  getPlayerPhoto,
-  getPlayerColor,
+  getPlayerEmoji,
   canSwapWithTrump,
   playCardFlipSound,
 } from '@/components/shared/gameDesign';
@@ -80,23 +81,19 @@ const OpponentHeader = styled.div`
   margin-bottom: ${DESIGN.spacing.md};
 `;
 
-const OpponentAvatar = styled.div<{ isActive?: boolean; backgroundImage?: string; avatarColor?: string }>`
+const OpponentAvatar = styled.div<{ isActive?: boolean }>`
   width: 48px;
   height: 48px;
   min-width: 48px;
   border-radius: 50%;
-  background: ${props => props.backgroundImage ? `url(${props.backgroundImage})` : props.avatarColor || `linear-gradient(135deg, ${DESIGN.colors.accents.green}, ${DESIGN.colors.accents.cyan})`};
-  background-size: cover;
-  background-position: center;
+  background: ${DESIGN.colors.surfaces.elevated};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 16px;
+  font-size: 26px;
+  line-height: 1;
   flex-shrink: 0;
   border: 2px solid ${props => props.isActive ? DESIGN.colors.accents.green : DESIGN.colors.bg.tertiary};
-  color: ${DESIGN.colors.text.primary};
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 `;
 
 const OpponentName = styled.div`
@@ -180,6 +177,26 @@ const RoundInfo = styled.div`
   font-weight: ${DESIGN.typography.label.weight};
 `;
 
+const RulesIconButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid ${DESIGN.colors.bg.tertiary};
+  background: ${DESIGN.colors.surfaces.elevated};
+  color: ${DESIGN.colors.text.tertiary};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms;
+  padding: 0;
+
+  &:hover {
+    color: ${DESIGN.colors.text.primary};
+    border-color: ${DESIGN.colors.accents.cyan};
+  }
+`;
+
 // Game Board
 const GameBoard = styled.div`
   flex: 1;
@@ -236,14 +253,23 @@ const PlaySlot = styled.div<{ isEmpty?: boolean; isWinner?: boolean; isFadingOut
   align-items: center;
   justify-content: center;
   transition: all 200ms ease-out;
-  background: ${props => props.isEmpty ? 'transparent' : 'transparent'};
   
   ${props => props.isWinner && css`
-    animation: ${pulseBlue} 2s ease-out;
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border: 2.5px solid ${DESIGN.colors.accents.cyan};
+      border-radius: calc(${DESIGN.radius.cards} + 2px);
+      pointer-events: none;
+      animation: ${borderGlow} 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+                 ${borderFadeOut} 0.3s ease-out 1.0s forwards;
+      z-index: 10;
+    }
   `}
   
   ${props => props.isFadingOut && css`
-    animation: ${fadeOut} 400ms ease-out forwards;
+    animation: ${fadeOut} 250ms ease-out forwards;
   `}
 `;
 
@@ -518,6 +544,7 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
   const [swapHighlightId, setSwapHighlightId] = useState<string | null>(null);
   const [swapNotification, setSwapNotification] = useState<string | null>(null);
   const prevSwapPlayerRef = useRef(gameState.lastSwapPlayerId);
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     const newSwapper = gameState.lastSwapPlayerId;
@@ -560,10 +587,10 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
   useEffect(() => {
     if (gameState.phase === 'round_complete') {
       setIsFadingOut(false);
-      // Start fading before host resolves at 2.5s
+      // Start fading before host resolves at 1.6s
       const fadeTimer = setTimeout(() => {
         setIsFadingOut(true);
-      }, 2000);
+      }, 1200);
       return () => clearTimeout(fadeTimer);
     } else {
       setIsFadingOut(false);
@@ -607,6 +634,7 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
             {!isHostPlayer && (
               <div style={{ marginTop: DESIGN.spacing.lg, fontSize: DESIGN.typography.caption.size, color: DESIGN.colors.text.tertiary }}>Waiting for host to start a new game...</div>
             )}
+            <MatchHistoryButton roundHistory={gameState.roundHistory} players={players} />
           </GameOverDialog>
         </GameOverOverlay>
       </GameContainer>
@@ -632,10 +660,8 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
               <OpponentHeader>
                 <OpponentAvatar 
                   isActive={isActive}
-                  backgroundImage={getPlayerPhoto(player)}
-                  avatarColor={getPlayerColor(player)}
                 >
-                  {!getPlayerPhoto(player) && getPlayerInitials(player.id, players)}
+                  {getPlayerEmoji(player)}
                 </OpponentAvatar>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <OpponentName>{getPlayerName(player)}</OpponentName>
@@ -665,7 +691,12 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
           <GameTitle>
             BRISCOLA<GameVersion>v{packageJson.version}</GameVersion>
           </GameTitle>
-          <RoundInfo>Round {gameState.roundNumber}</RoundInfo>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <RoundInfo>Round {gameState.roundNumber}</RoundInfo>
+            <RulesIconButton onClick={() => setShowRules(true)} title="How to Play">
+              <RulesIcon />
+            </RulesIconButton>
+          </div>
         </GameHeader>
 
         <GameBoard>
@@ -746,11 +777,13 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
 
           {/* Center: Templated Play Area - ALWAYS VISIBLE */}
           <PlayAreaContainer>
-            {players.map((_, slotIndex) => (
+            {players.map((_, slotIndex) => {
+              const isSlotWinner = roundWinnerId === playedCards[slotIndex]?.playerId;
+              return (
               <PlaySlot
                 key={slotIndex}
                 isEmpty={playedCards.length < slotIndex + 1}
-                isWinner={roundWinnerId === playedCards[slotIndex]?.playerId}
+                isWinner={isSlotWinner}
                 isFadingOut={isFadingOut}
               >
                 {playedCards.length > slotIndex && (
@@ -765,7 +798,8 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
                   </PlayedCardWrapper>
                 )}
               </PlaySlot>
-            ))}
+              );
+            })}
           </PlayAreaContainer>
 
           {/* Floating Bottom Dock - Player Hand */}
@@ -797,6 +831,8 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
           </BottomHandDock>
         </GameBoard>
       </CenterArea>
+
+      {showRules && <RulesPopup onClose={() => setShowRules(false)} />}
     </GameContainer>
   );
 };

@@ -21,13 +21,13 @@ import { detectDevice, DeviceType } from '@/utils/deviceDetection';
 import { DesktopGameUI } from '@/components/DesktopGameUI';
 import { MobileGameUI } from '@/components/MobileGameUI';
 import { HeroScreen } from '@/components/HeroScreen';
-import { DESIGN, getPlayerName, getPlayerColor } from '@/components/shared/gameDesign';
+import { DESIGN, getPlayerName, getPlayerEmoji } from '@/components/shared/gameDesign';
 
 // ===== TYPES =====
 type AppPhase = 'hero' | 'connecting' | 'connected';
 
 // ===== CONNECTED APP (LOBBY + GAME) =====
-const ConnectedApp: React.FC<{ username: string; avatarColor: string; gameMode?: GameMode }> = ({ username, avatarColor, gameMode }) => {
+const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?: GameMode }> = ({ username, avatarEmoji, gameMode }) => {
   const players = usePlayersList(true);
   const [gameState, setGameState] = useMultiplayerState<GameState | null>("game", null);
   const [hostId, setHostId] = useMultiplayerState<string | null>("hostId", null);
@@ -46,6 +46,7 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string; gameMode?:
   const setGameStateRef = useRef(setGameState);
   const resolveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const profileSetRef = useRef(false);
+  const gameCountRef = useRef(0);
 
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { setGameStateRef.current = setGameState; }, [setGameState]);
@@ -54,10 +55,10 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string; gameMode?:
   useEffect(() => {
     if (currentPlayer && !profileSetRef.current) {
       currentPlayer.setState('displayName', username, true);
-      currentPlayer.setState('avatarColor', avatarColor, true);
+      currentPlayer.setState('avatarEmoji', avatarEmoji, true);
       profileSetRef.current = true;
     }
-  }, [currentPlayer, username, avatarColor]);
+  }, [currentPlayer, username, avatarEmoji]);
 
   // Host broadcasts their id and game mode so all clients know
   useEffect(() => {
@@ -116,7 +117,7 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string; gameMode?:
           latestLogic.loadState(latestState);
           const resolvedState = latestLogic.resolveRound();
           setGameStateRef.current(resolvedState, true);
-        }, 2500);
+        }, 1600);
       }
       return "ok";
     });
@@ -137,7 +138,11 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string; gameMode?:
       if (!isHost()) return;
       const logic = gameLogicRef.current;
       if (!logic) return;
+      gameCountRef.current += 1;
       const newState = logic.initializeGame();
+      // Rotate starting player each game
+      const playerCount = Object.keys(newState.playerHands).length;
+      newState.currentTurnPlayerIndex = gameCountRef.current % playerCount;
       setGameStateRef.current(newState, true);
       return "ok";
     });
@@ -252,14 +257,14 @@ const ConnectedApp: React.FC<{ username: string; avatarColor: string; gameMode?:
             <PlayersHeader>Players ({players.length}/{maxPlayers})</PlayersHeader>
             {players.map((player) => {
               const name = getPlayerName(player);
-              const color = getPlayerColor(player);
+              const emoji = getPlayerEmoji(player);
               const isYou = player.id === currentPlayer?.id;
               const isPlayerHost = player.id === hostId;
 
               return (
                 <PlayerRow key={player.id}>
-                  <LobbyPlayerAvatar style={{ background: color }}>
-                    {name.slice(0, 2).toUpperCase()}
+                  <LobbyPlayerAvatar>
+                    {emoji}
                   </LobbyPlayerAvatar>
                   <PlayerNameText>
                     {name}
@@ -563,10 +568,10 @@ const LobbyPlayerAvatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
-  color: ${DESIGN.colors.bg.primary};
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  font-size: 22px;
+  line-height: 1;
+  background: ${DESIGN.colors.surfaces.elevated};
+  border: 1.5px solid ${DESIGN.colors.bg.tertiary};
 `;
 
 const WaitingDot = styled.div`
@@ -654,7 +659,7 @@ const PulsingDot = styled.div`
 export default function Home() {
   const [phase, setPhase] = useState<AppPhase>('hero');
   const [username, setUsername] = useState('');
-  const [avatarColor, setAvatarColor] = useState('');
+  const [avatarEmoji, setAvatarEmoji] = useState('');
   const [gameMode, setGameMode] = useState<GameMode | undefined>(undefined);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connectingText, setConnectingText] = useState('Connecting');
@@ -671,9 +676,9 @@ export default function Home() {
     }
   }, []);
 
-  const connect = useCallback(async (name: string, color: string, roomCode?: string, mode?: GameMode) => {
+  const connect = useCallback(async (name: string, emoji: string, roomCode?: string, mode?: GameMode) => {
     setUsername(name);
-    setAvatarColor(color);
+    setAvatarEmoji(emoji);
     if (mode) setGameMode(mode);
     setConnectingText(roomCode ? 'Joining game' : 'Creating game');
     setPhase('connecting');
@@ -706,12 +711,12 @@ export default function Home() {
     }
   }, []);
 
-  const handleCreateGame = useCallback((name: string, color: string, mode: GameMode) => {
-    connect(name, color, undefined, mode);
+  const handleCreateGame = useCallback((name: string, emoji: string, mode: GameMode) => {
+    connect(name, emoji, undefined, mode);
   }, [connect]);
 
-  const handleJoinGame = useCallback((name: string, color: string, roomCode: string) => {
-    connect(name, color, roomCode);
+  const handleJoinGame = useCallback((name: string, emoji: string, roomCode: string) => {
+    connect(name, emoji, roomCode);
   }, [connect]);
 
   // ===== HERO PHASE =====
@@ -749,5 +754,5 @@ export default function Home() {
   }
 
   // ===== CONNECTED PHASE =====
-  return <ConnectedApp username={username} avatarColor={avatarColor} gameMode={gameMode} />;
+  return <ConnectedApp username={username} avatarEmoji={avatarEmoji} gameMode={gameMode} />;
 }

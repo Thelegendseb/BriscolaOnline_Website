@@ -4,22 +4,31 @@ import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { DESIGN } from '@/components/shared/gameDesign';
 import { GameMode } from '@/game/GameModeSelector';
+import { RulesPopup, RulesButton, RulesIcon } from '@/components/RulesPopup';
 import packageJson from '../../package.json';
 
 // ===== CONSTANTS =====
-export const AVATAR_COLORS = [
-  '#ff6b9d', // pink
-  '#00ff88', // green
-  '#00d4ff', // cyan
-  '#ffd700', // gold
-  '#ff6b35', // orange
-  '#a855f7', // purple
-  '#ef4444', // red
-  '#3b82f6', // blue
+export const AVATAR_EMOJIS = [
+  '😈',
+  '😏',
+  '😎',
+  '🤨',
+  '😒',
+  '🙄',
+  '😤',
+  '🤬',
+  '😡',
+  '🤡',
+  '👿',
+  '🧐',
+  '🤓',
+  '🥶',
+  '😵‍💫',
+  '🫠',
 ];
 
 export const LS_USERNAME_KEY = 'briscola_username';
-export const LS_COLOR_KEY = 'briscola_avatarColor';
+export const LS_EMOJI_KEY = 'briscola_avatarEmoji';
 
 const HERO_CARDS = [
   { src: '/assets/cards/cup/cup_1.png', rotation: -20, alt: 'Ace of Cups' },
@@ -48,8 +57,8 @@ const GAME_MODE_OPTIONS = [
 
 // ===== INTERFACES =====
 export interface HeroScreenProps {
-  onCreateGame: (username: string, avatarColor: string, mode: GameMode) => void;
-  onJoinGame: (username: string, avatarColor: string, roomCode: string) => void;
+  onCreateGame: (username: string, avatarEmoji: string, mode: GameMode) => void;
+  onJoinGame: (username: string, avatarEmoji: string, roomCode: string) => void;
   error?: string | null;
   onDismissError?: () => void;
   initialRoomCode?: string;
@@ -190,26 +199,31 @@ const Input = styled.input`
   }
 `;
 
-const ColorRow = styled.div`
+const EmojiGrid = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
 `;
 
-const ColorDot = styled.button<{ color: string; isSelected: boolean }>`
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: ${p => p.color};
-  border: 3px solid ${p => p.isSelected ? '#ffffff' : 'transparent'};
+const EmojiButton = styled.button<{ isSelected: boolean }>`
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: ${p => p.isSelected ? `${DESIGN.colors.accents.green}30` : 'transparent'};
+  border: 2px solid ${p => p.isSelected ? DESIGN.colors.accents.green : 'transparent'};
   cursor: pointer;
   transition: all 150ms;
-  box-shadow: ${p => p.isSelected ? `0 0 0 2px ${p.color}44` : 'none'};
   padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     transform: scale(1.15);
+    background: ${DESIGN.colors.surfaces.elevated};
   }
 `;
 
@@ -357,19 +371,20 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
   initialRoomCode,
 }) => {
   const [username, setUsername] = useState('');
-  const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[1]); // green default
+  const [avatarEmoji, setAvatarEmoji] = useState(AVATAR_EMOJIS[0]);
   const [showJoin, setShowJoin] = useState(!!initialRoomCode);
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [roomCode, setRoomCode] = useState(initialRoomCode || '');
   const [cardsVisible, setCardsVisible] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
     try {
       const savedName = localStorage.getItem(LS_USERNAME_KEY);
-      const savedColor = localStorage.getItem(LS_COLOR_KEY);
+      const savedEmoji = localStorage.getItem(LS_EMOJI_KEY);
       if (savedName) setUsername(savedName);
-      if (savedColor && AVATAR_COLORS.includes(savedColor)) setAvatarColor(savedColor);
+      if (savedEmoji && AVATAR_EMOJIS.includes(savedEmoji)) setAvatarEmoji(savedEmoji);
     } catch {}
 
     // Trigger card fan animation
@@ -380,10 +395,10 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
   const isValid = username.trim().length > 0;
   const isJoinValid = isValid && roomCode.trim().length === 4;
 
-  const saveToStorage = (name: string, color: string) => {
+  const saveToStorage = (name: string, emoji: string) => {
     try {
       localStorage.setItem(LS_USERNAME_KEY, name);
-      localStorage.setItem(LS_COLOR_KEY, color);
+      localStorage.setItem(LS_EMOJI_KEY, emoji);
     } catch {}
   };
 
@@ -394,15 +409,15 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
 
   const handleModeSelect = (mode: GameMode) => {
     const trimmedName = username.trim();
-    saveToStorage(trimmedName, avatarColor);
-    onCreateGame(trimmedName, avatarColor, mode);
+    saveToStorage(trimmedName, avatarEmoji);
+    onCreateGame(trimmedName, avatarEmoji, mode);
   };
 
   const handleJoin = () => {
     if (!isJoinValid) return;
     const trimmedName = username.trim();
-    saveToStorage(trimmedName, avatarColor);
-    onJoinGame(trimmedName, avatarColor, roomCode.trim().toUpperCase());
+    saveToStorage(trimmedName, avatarEmoji);
+    onJoinGame(trimmedName, avatarEmoji, roomCode.trim().toUpperCase());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -455,17 +470,18 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
           spellCheck={false}
         />
 
-        <InputLabel>Avatar Color</InputLabel>
-        <ColorRow>
-          {AVATAR_COLORS.map(color => (
-            <ColorDot
-              key={color}
-              color={color}
-              isSelected={avatarColor === color}
-              onClick={() => setAvatarColor(color)}
-            />
+        <InputLabel>Avatar Emoji</InputLabel>
+        <EmojiGrid>
+          {AVATAR_EMOJIS.map(emoji => (
+            <EmojiButton
+              key={emoji}
+              isSelected={avatarEmoji === emoji}
+              onClick={() => setAvatarEmoji(emoji)}
+            >
+              {emoji}
+            </EmojiButton>
           ))}
-        </ColorRow>
+        </EmojiGrid>
 
         {showModeSelect ? (
           <>
@@ -527,6 +543,12 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
           </>
         )}
       </FormSection>
+
+      <RulesButton onClick={() => setShowRules(true)} style={{ marginTop: '16px' }}>
+        <RulesIcon /> HOW TO PLAY
+      </RulesButton>
+
+      {showRules && <RulesPopup onClose={() => setShowRules(false)} />}
     </Container>
   );
 };

@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled, { css } from 'styled-components';
 import { CardComponent } from '@/components/Card';
+import { MatchHistoryButton } from '@/components/MatchHistory';
+import { RulesPopup, RulesIcon } from '@/components/RulesPopup';
 import {
   DESIGN,
-  pulseBlue,
+  borderGlow,
+  borderFadeOut,
   fadeOut,
   cardEntrance,
   swapGlow,
   cardColors,
   GameUIProps,
-  getPlayerInitials,
   getPlayerName,
-  getPlayerPhoto,
-  getPlayerColor,
+  getPlayerEmoji,
   canSwapWithTrump,
   playCardFlipSound,
 } from '@/components/shared/gameDesign';
@@ -91,6 +92,31 @@ const RoundBadge = styled.div`
   font-weight: ${DESIGN.typography.label.weight};
 `;
 
+const RulesIconButton = styled.button`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid ${DESIGN.colors.bg.tertiary};
+  background: ${DESIGN.colors.surfaces.elevated};
+  color: ${DESIGN.colors.text.tertiary};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms;
+  padding: 0;
+
+  &:hover {
+    color: ${DESIGN.colors.text.primary};
+    border-color: ${DESIGN.colors.accents.cyan};
+  }
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+`;
+
 // Players Row
 const PlayersRow = styled.div`
   display: flex;
@@ -122,23 +148,19 @@ const PlayerPill = styled.div<{ isActive?: boolean; isYou?: boolean; isSwapHighl
   `}
 `;
 
-const PlayerPillAvatar = styled.div<{ isActive?: boolean; backgroundImage?: string; avatarColor?: string }>`
+const PlayerPillAvatar = styled.div<{ isActive?: boolean }>`
   width: 28px;
   height: 28px;
   min-width: 28px;
   border-radius: 50%;
-  background: ${props => props.backgroundImage ? `url(${props.backgroundImage})` : props.avatarColor || `linear-gradient(135deg, ${DESIGN.colors.accents.green}, ${DESIGN.colors.accents.cyan})`};
-  background-size: cover;
-  background-position: center;
+  background: ${DESIGN.colors.surfaces.elevated};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 10px;
+  font-size: 16px;
+  line-height: 1;
   flex-shrink: 0;
   border: 1.5px solid ${props => props.isActive ? DESIGN.colors.accents.green : DESIGN.colors.bg.tertiary};
-  color: ${DESIGN.colors.text.primary};
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 `;
 
 const PlayerPillInfo = styled.div`
@@ -216,11 +238,21 @@ const PlaySlot = styled.div<{ isEmpty?: boolean; isWinner?: boolean; isFadingOut
   transition: all 200ms ease-out;
   
   ${props => props.isWinner && css`
-    animation: ${pulseBlue} 2s ease-out;
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border: 2.5px solid ${DESIGN.colors.accents.cyan};
+      border-radius: calc(${DESIGN.radius.cards} + 2px);
+      pointer-events: none;
+      animation: ${borderGlow} 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+                 ${borderFadeOut} 0.3s ease-out 1.0s forwards;
+      z-index: 10;
+    }
   `}
   
   ${props => props.isFadingOut && css`
-    animation: ${fadeOut} 400ms ease-out forwards;
+    animation: ${fadeOut} 250ms ease-out forwards;
   `}
 `;
 
@@ -465,6 +497,7 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
   const [swapHighlightId, setSwapHighlightId] = useState<string | null>(null);
   const [swapNotification, setSwapNotification] = useState<string | null>(null);
   const prevSwapPlayerRef = useRef(gameState.lastSwapPlayerId);
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     const newSwapper = gameState.lastSwapPlayerId;
@@ -509,7 +542,7 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
       setIsFadingOut(false);
       const fadeTimer = setTimeout(() => {
         setIsFadingOut(true);
-      }, 2000);
+      }, 1200);
       return () => clearTimeout(fadeTimer);
     } else {
       setIsFadingOut(false);
@@ -556,6 +589,7 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
             {!isHostPlayer && (
               <div style={{ marginTop: DESIGN.spacing.md, fontSize: '12px', color: DESIGN.colors.text.tertiary }}>Waiting for host to start a new game...</div>
             )}
+            <MatchHistoryButton roundHistory={gameState.roundHistory} players={players} />
           </GameOverDialog>
         </GameOverOverlay>
       </GameContainer>
@@ -576,7 +610,12 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
           <GameTitleMobile>
             BRISCOLA<GameVersionMobile>v{packageJson.version}</GameVersionMobile>
           </GameTitleMobile>
-          <RoundBadge>Round {gameState.roundNumber}</RoundBadge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <RoundBadge>Round {gameState.roundNumber}</RoundBadge>
+            <RulesIconButton onClick={() => setShowRules(true)} title="How to Play">
+              <RulesIcon />
+            </RulesIconButton>
+          </div>
         </div>
         <TopBarRight>
           <MiniDeckInfo>
@@ -604,16 +643,13 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
         {players.map((player, index) => {
           const isYou = player.id === currentPlayerId;
           const isActive = currentTurnIndex === index;
-          const photo = getPlayerPhoto(player);
 
           return (
             <PlayerPill key={player.id} isActive={isActive} isYou={isYou} isSwapHighlighted={swapHighlightId === player.id}>
               <PlayerPillAvatar
                 isActive={isActive}
-                backgroundImage={photo}
-                avatarColor={getPlayerColor(player)}
               >
-                {!photo && getPlayerInitials(player.id, players)}
+                {getPlayerEmoji(player)}
               </PlayerPillAvatar>
               <PlayerPillInfo>
                 <PlayerPillName>
@@ -633,11 +669,13 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
       {/* Center Play Area */}
       <PlayArea>
         <PlayAreaSlots>
-          {players.map((_, slotIndex) => (
+          {players.map((_, slotIndex) => {
+            const isSlotWinner = roundWinnerId === playedCards[slotIndex]?.playerId;
+            return (
             <PlaySlot
               key={slotIndex}
               isEmpty={playedCards.length < slotIndex + 1}
-              isWinner={roundWinnerId === playedCards[slotIndex]?.playerId}
+              isWinner={isSlotWinner}
               isFadingOut={isFadingOut}
             >
               {playedCards.length > slotIndex && (
@@ -653,7 +691,8 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
               )}
               <PlaySlotLabel>{getSlotPlayerName(slotIndex)}</PlaySlotLabel>
             </PlaySlot>
-          ))}
+            );
+          })}
         </PlayAreaSlots>
       </PlayArea>
 
@@ -689,6 +728,8 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
           })}
         </HandRow>
       </BottomArea>
+
+      {showRules && <RulesPopup onClose={() => setShowRules(false)} />}
     </GameContainer>
   );
 };

@@ -48,17 +48,35 @@ export const DESIGN = {
 };
 
 // ===== SHARED ANIMATIONS =====
-export const pulseBlue = keyframes`
+export const borderGlow = keyframes`
   0% {
-    box-shadow: 0 0 0 3px ${DESIGN.colors.accents.cyan};
+    opacity: 0;
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
+  }
+  15% {
+    opacity: 1;
   }
   50% {
-    box-shadow: 0 0 0 6px ${DESIGN.colors.accents.cyan};
+    box-shadow: 0 0 12px 2px rgba(0, 212, 255, 0.4);
   }
   100% {
-    box-shadow: 0 0 0 3px ${DESIGN.colors.accents.cyan};
+    opacity: 1;
+    box-shadow: 0 0 6px 1px rgba(0, 212, 255, 0.2);
   }
 `;
+
+export const borderFadeOut = keyframes`
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+`;
+
+// Keep legacy export names for import compatibility
+export const borderSweep = borderGlow;
+export const borderDrawTop = borderGlow;
+export const borderDrawRight = borderGlow;
+export const borderDrawBottom = borderGlow;
+export const borderDrawLeft = borderGlow;
+export const pulseBlue = borderGlow;
 
 export const fadeOut = keyframes`
   0% {
@@ -120,6 +138,10 @@ export const getPlayerPhoto = (player: PlayerState): string | undefined => {
 
 export const getPlayerColor = (player: PlayerState): string => {
   return player.getState?.('avatarColor') || DESIGN.colors.accents.green;
+};
+
+export const getPlayerEmoji = (player: PlayerState): string => {
+  return player.getState?.('avatarEmoji') || '😎';
 };
 
 // ===== SWAP MECHANICS =====

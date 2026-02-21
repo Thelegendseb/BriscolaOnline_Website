@@ -21,10 +21,17 @@ export type GamePhase =
   | 'round_complete'
   | 'game_over';
 
+export interface RoundHistoryEntry {
+  roundNumber: number;
+  playedCards: PlayedCardData[];
+  winnerId: string;
+}
+
 export interface GameState {
   phase: GamePhase;
   deck: Card[];
   trumpCard: Card | null;
+  trumpSuit: Suit | null;
   playerHands: { [playerId: string]: Card[] };
   playerStacks: { [playerId: string]: Card[] };
   playedCards: PlayedCardData[];
@@ -34,6 +41,7 @@ export interface GameState {
   finalScores: { [playerId: string]: number };
   gameWinnerId: string | null;
   lastSwapPlayerId: string | null;
+  roundHistory: RoundHistoryEntry[];
 }
 
 export interface GameConfig {
@@ -59,6 +67,7 @@ export abstract class BaseGameLogic {
       phase: 'waiting',
       deck: [],
       trumpCard: null,
+      trumpSuit: null,
       playerHands: {},
       playerStacks: {},
       playedCards: [],
@@ -68,6 +77,7 @@ export abstract class BaseGameLogic {
       finalScores: {},
       gameWinnerId: null,
       lastSwapPlayerId: null,
+      roundHistory: [],
     };
   }
 
@@ -111,6 +121,7 @@ export abstract class BaseGameLogic {
       phase: 'playing',
       deck: newDeck,
       trumpCard,
+      trumpSuit: trumpCard.suit,
       playerHands: hands,
       playerStacks: stacks,
       playedCards: [],
@@ -120,6 +131,7 @@ export abstract class BaseGameLogic {
       finalScores: {},
       gameWinnerId: null,
       lastSwapPlayerId: null,
+      roundHistory: [],
     };
 
     return this.getState();
