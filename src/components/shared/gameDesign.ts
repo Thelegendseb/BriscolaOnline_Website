@@ -126,9 +126,8 @@ export const getPlayerInitials = (playerId: string, players: PlayerState[]): str
 export const getPlayerName = (player: PlayerState): string => {
   // With skipLobby, name is stored in player state
   const displayName = player.getState?.('displayName');
-  if (displayName) return displayName;
-  const profile = player.getProfile();
-  return profile?.name || 'Player';
+  const raw = displayName || player.getProfile()?.name || 'Player';
+  return raw.length > 12 ? raw.slice(0, 12) : raw;
 };
 
 export const getPlayerPhoto = (player: PlayerState): string | undefined => {

@@ -122,28 +122,33 @@ const RulesIconButton = styled.button`
 // Players Row
 const PlayersRow = styled.div`
   display: flex;
-  gap: ${DESIGN.spacing.xs};
-  padding: ${DESIGN.spacing.xs} ${DESIGN.spacing.sm};
+  gap: 6px;
+  padding: 6px ${DESIGN.spacing.sm};
   background: ${DESIGN.colors.bg.secondary};
   border-bottom: 1px solid ${DESIGN.colors.bg.tertiary};
-  overflow-x: auto;
   flex-shrink: 0;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  justify-content: center;
+  align-items: center;
 `;
 
 const PlayerPill = styled.div<{ isActive?: boolean; isYou?: boolean; isSwapHighlighted?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0px;
   background: ${DESIGN.colors.surfaces.containers};
   border-radius: 20px;
-  padding: 4px 10px 4px 4px;
+  padding: 3px;
   flex-shrink: 0;
   border: 1.5px solid ${props => props.isSwapHighlighted ? DESIGN.colors.accents.green : props.isActive ? DESIGN.colors.accents.green : 'transparent'};
-  transition: border 200ms ease-out;
+  transition: all 250ms ease-out;
+  overflow: hidden;
+  max-width: 34px;
+
+  ${props => props.isActive && css`
+    gap: 6px;
+    padding: 3px 10px 3px 3px;
+    max-width: 200px;
+  `}
 
   ${props => props.isSwapHighlighted && css`
     animation: ${swapGlow} 1200ms ease-out;
@@ -151,15 +156,15 @@ const PlayerPill = styled.div<{ isActive?: boolean; isYou?: boolean; isSwapHighl
 `;
 
 const PlayerPillAvatar = styled.div<{ isActive?: boolean }>`
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
   border-radius: 50%;
   background: ${DESIGN.colors.surfaces.elevated};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1;
   flex-shrink: 0;
   border: 1.5px solid ${props => props.isActive ? DESIGN.colors.accents.green : DESIGN.colors.bg.tertiary};
@@ -169,6 +174,7 @@ const PlayerPillInfo = styled.div`
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 `;
 
 const PlayerPillName = styled.div`
@@ -178,7 +184,6 @@ const PlayerPillName = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 70px;
 `;
 
 const PlayerPillStats = styled.div`
@@ -186,6 +191,7 @@ const PlayerPillStats = styled.div`
   color: ${DESIGN.colors.text.tertiary};
   display: flex;
   gap: 6px;
+  white-space: nowrap;
 `;
 
 const PlayerPillStatValue = styled.span`
@@ -221,11 +227,13 @@ const PlayArea = styled.div`
   min-height: 0;
 `;
 
-const PlayAreaSlots = styled.div`
+const PlayAreaSlots = styled.div<{ playerCount?: number }>`
   display: flex;
-  gap: ${DESIGN.spacing.md};
+  gap: ${props => (props.playerCount && props.playerCount >= 4) ? '4px' : DESIGN.spacing.md};
   justify-content: center;
   align-items: center;
+  max-width: 100vw;
+  padding: 0 ${DESIGN.spacing.xs};
 `;
 
 const PlaySlot = styled.div<{ isEmpty?: boolean; isWinner?: boolean; isFadingOut?: boolean }>`
@@ -723,19 +731,21 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
               >
                 {getPlayerEmoji(player)}
               </PlayerPillAvatar>
-              <PlayerPillInfo>
-                <PlayerPillName>
-                  {getPlayerName(player)}
-                  {isYou && <YouBadge> YOU</YouBadge>}
-                </PlayerPillName>
-                <PlayerPillStats>
-                  <span>H:<PlayerPillStatValue>{gameState.playerHands[player.id]?.length || 0}</PlayerPillStatValue></span>
-                  <span>W:<PlayerPillStatValue>{gameState.playerStacks[player.id]?.length || 0}</PlayerPillStatValue></span>
-                  {isTeamMode && teams[player.id] && (
-                    <MobileTeamIndicator team={teams[player.id]}>T{teams[player.id]}</MobileTeamIndicator>
-                  )}
-                </PlayerPillStats>
-              </PlayerPillInfo>
+              {isActive && (
+                <PlayerPillInfo>
+                  <PlayerPillName>
+                    {isYou ? 'You' : getPlayerName(player)}
+                    {isYou && <YouBadge> YOU</YouBadge>}
+                  </PlayerPillName>
+                  <PlayerPillStats>
+                    <span>H:<PlayerPillStatValue>{gameState.playerHands[player.id]?.length || 0}</PlayerPillStatValue></span>
+                    <span>W:<PlayerPillStatValue>{gameState.playerStacks[player.id]?.length || 0}</PlayerPillStatValue></span>
+                    {isTeamMode && teams[player.id] && (
+                      <MobileTeamIndicator team={teams[player.id]}>T{teams[player.id]}</MobileTeamIndicator>
+                    )}
+                  </PlayerPillStats>
+                </PlayerPillInfo>
+              )}
             </PlayerPill>
           );
         })}
@@ -743,7 +753,7 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
 
       {/* Center Play Area */}
       <PlayArea>
-        <PlayAreaSlots>
+        <PlayAreaSlots playerCount={players.length}>
           {players.map((_, slotIndex) => {
             const isSlotWinner = roundWinnerId === playedCards[slotIndex]?.playerId;
             return (

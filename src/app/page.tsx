@@ -21,7 +21,7 @@ import { TwoVTwoGameLogic } from '@/game/modes/TwoVTwoGameLogic';
 import { detectDevice, DeviceType } from '@/utils/deviceDetection';
 import { DesktopGameUI } from '@/components/DesktopGameUI';
 import { MobileGameUI } from '@/components/MobileGameUI';
-import { HeroScreen } from '@/components/HeroScreen';
+import { HeroScreen, LS_USERNAME_KEY, LS_EMOJI_KEY, AVATAR_EMOJIS } from '@/components/HeroScreen';
 import { DESIGN, getPlayerName, getPlayerEmoji, getPlayerTeam, TEAM_COLORS } from '@/components/shared/gameDesign';
 
 // ===== TYPES =====
@@ -38,7 +38,8 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
   const currentPlayer = myPlayer();
   const amHost = isHost();
   const [roomCode, setRoomCode] = useState<string>('');
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [showQR, setShowQR] = useState(false);
 
   // Refs
@@ -231,10 +232,19 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
 
   const handleCopyCode = () => {
     if (roomCode) {
-      const url = `${window.location.origin}#r=${roomCode}`;
+      navigator.clipboard?.writeText(roomCode).then(() => {
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2000);
+      });
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (roomCode) {
+      const url = `${window.location.origin}?refcode=${roomCode}`;
       navigator.clipboard?.writeText(url).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
       });
     }
   };
@@ -272,7 +282,10 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
             <RoomCodeValue>{roomCode || '----'}</RoomCodeValue>
             <ShareButtonRow>
               <ShareButton onClick={handleCopyCode}>
-                {copied ? 'LINK COPIED!' : 'COPY LINK'}
+                {copiedCode ? 'COPIED!' : 'COPY CODE'}
+              </ShareButton>
+              <ShareButton onClick={handleCopyLink}>
+                {copiedLink ? 'COPIED!' : 'COPY LINK'}
               </ShareButton>
               <ShareButton onClick={() => setShowQR(!showQR)}>
                 {showQR ? 'HIDE QR' : 'SHOW QR'}
@@ -281,7 +294,7 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
             {showQR && roomCode && (
               <QRCodeContainer>
                 <QRCodeSVG 
-                  value={`${window.location.origin}#r=${roomCode}`}
+                  value={`${window.location.origin}?refcode=${roomCode}`}
                   size={160}
                   level="H"
                   fgColor="#ffffff"
@@ -757,6 +770,150 @@ const PulsingDot = styled.div`
   animation: ${hostPulse} 1.5s ease-in-out infinite;
 `;
 
+// ===== QUICK JOIN POPUP STYLES =====
+const QuickJoinOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${DESIGN.colors.bg.secondary};
+  padding: 20px;
+`;
+
+const QuickJoinCard = styled.div`
+  background: ${DESIGN.colors.surfaces.containers};
+  border: 1px solid ${DESIGN.colors.surfaces.elevated};
+  border-radius: ${DESIGN.radius.containers};
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 360px;
+  animation: ${lobbyFadeIn} 300ms ease-out;
+`;
+
+const QuickJoinTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  color: ${DESIGN.colors.text.primary};
+  margin: 0 0 4px;
+  text-align: center;
+`;
+
+const QuickJoinSubtitle = styled.p`
+  font-size: 13px;
+  color: ${DESIGN.colors.accents.green};
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin: 0 0 20px;
+  text-align: center;
+`;
+
+const QuickJoinField = styled.div`
+  margin-bottom: 16px;
+`;
+
+const QuickJoinLabel = styled.label`
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: ${DESIGN.colors.text.tertiary};
+  text-transform: uppercase;
+  margin-bottom: 6px;
+`;
+
+const QuickJoinInput = styled.input`
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid ${DESIGN.colors.bg.tertiary};
+  background: ${DESIGN.colors.surfaces.elevated};
+  color: ${DESIGN.colors.text.primary};
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 150ms;
+
+  &:focus {
+    border-color: ${DESIGN.colors.accents.green};
+  }
+
+  &::placeholder {
+    color: ${DESIGN.colors.text.tertiary};
+  }
+`;
+
+const QuickJoinEmojiGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+`;
+
+const QuickJoinEmojiBtn = styled.button<{ isSelected: boolean }>`
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid ${props => props.isSelected ? DESIGN.colors.accents.green : 'transparent'};
+  background: ${props => props.isSelected ? `${DESIGN.colors.accents.green}20` : DESIGN.colors.surfaces.elevated};
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 150ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: ${DESIGN.colors.bg.tertiary};
+  }
+`;
+
+const QuickJoinActions = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+`;
+
+const QuickJoinCancelBtn = styled.button`
+  flex: 1;
+  padding: 12px;
+  border-radius: ${DESIGN.radius.buttons};
+  border: 1.5px solid ${DESIGN.colors.bg.tertiary};
+  background: transparent;
+  color: ${DESIGN.colors.text.secondary};
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms;
+
+  &:hover {
+    background: ${DESIGN.colors.surfaces.elevated};
+    color: ${DESIGN.colors.text.primary};
+  }
+`;
+
+const QuickJoinSubmitBtn = styled.button`
+  flex: 2;
+  padding: 12px;
+  border-radius: ${DESIGN.radius.buttons};
+  border: none;
+  background: ${DESIGN.colors.accents.green};
+  color: ${DESIGN.colors.bg.primary};
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px ${DESIGN.colors.accents.green}40;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
 // ===== ENTRY POINT =====
 export default function Home() {
   const [phase, setPhase] = useState<AppPhase>('hero');
@@ -767,16 +924,10 @@ export default function Home() {
   const [connectingText, setConnectingText] = useState('Connecting');
   const [initialRoomCode, setInitialRoomCode] = useState<string | undefined>(undefined);
 
-  // Parse room code from URL hash (e.g. #r=ABCD) for shared invite links
-  useEffect(() => {
-    const hash = window.location.hash;
-    const match = hash.match(/^#r=([A-Z0-9]{4})$/i);
-    if (match) {
-      setInitialRoomCode(match[1].toUpperCase());
-      // Clean the hash so it doesn't persist on refresh after joining
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-  }, []);
+  // Quick join popup state (for invite links when user has no saved credentials)
+  const [pendingRefcode, setPendingRefcode] = useState<string | null>(null);
+  const [quickJoinName, setQuickJoinName] = useState('');
+  const [quickJoinEmoji, setQuickJoinEmoji] = useState(AVATAR_EMOJIS[0]);
 
   const connect = useCallback(async (name: string, emoji: string, roomCode?: string, mode?: GameMode) => {
     setUsername(name);
@@ -822,6 +973,91 @@ export default function Home() {
   const handleJoinGame = useCallback((name: string, emoji: string, roomCode: string) => {
     connect(name, emoji, roomCode);
   }, [connect]);
+
+  // Parse room code from URL query param (e.g. ?refcode=ABCD) for shared invite links
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refcode = params.get('refcode');
+    if (refcode && /^[A-Z0-9]{4}$/i.test(refcode)) {
+      const code = refcode.toUpperCase();
+      // Clean the URL so it doesn't persist on refresh
+      window.history.replaceState(null, '', window.location.pathname);
+
+      // Auto-join if we have saved credentials, otherwise show quick join popup
+      const savedName = localStorage.getItem(LS_USERNAME_KEY);
+      const savedEmoji = localStorage.getItem(LS_EMOJI_KEY);
+      if (savedName && savedEmoji) {
+        connect(savedName, savedEmoji, code);
+      } else {
+        setPendingRefcode(code);
+      }
+    }
+  }, [connect]);
+
+  // Handle quick join popup submission
+  const handleQuickJoin = useCallback(() => {
+    const trimmedName = quickJoinName.trim();
+    if (!trimmedName || !pendingRefcode) return;
+    // Save to localStorage as their preference
+    try {
+      localStorage.setItem(LS_USERNAME_KEY, trimmedName);
+      localStorage.setItem(LS_EMOJI_KEY, quickJoinEmoji);
+    } catch (e) { /* ignore storage errors */ }
+    setPendingRefcode(null);
+    connect(trimmedName, quickJoinEmoji, pendingRefcode);
+  }, [quickJoinName, quickJoinEmoji, pendingRefcode, connect]);
+
+  // ===== QUICK JOIN POPUP (invite link without saved credentials) =====
+  if (pendingRefcode) {
+    const canJoin = quickJoinName.trim().length > 0;
+    return (
+      <>
+        <GlobalStyle />
+        <QuickJoinOverlay>
+          <QuickJoinCard>
+            <QuickJoinTitle>Join Game</QuickJoinTitle>
+            <QuickJoinSubtitle>Room: {pendingRefcode}</QuickJoinSubtitle>
+            
+            <QuickJoinField>
+              <QuickJoinLabel>Your Name</QuickJoinLabel>
+              <QuickJoinInput
+                type="text"
+                placeholder="Enter your name"
+                value={quickJoinName}
+                onChange={(e) => setQuickJoinName(e.target.value.slice(0, 12))}
+                maxLength={12}
+                autoFocus
+              />
+            </QuickJoinField>
+
+            <QuickJoinField>
+              <QuickJoinLabel>Pick an Emoji</QuickJoinLabel>
+              <QuickJoinEmojiGrid>
+                {AVATAR_EMOJIS.map((emoji) => (
+                  <QuickJoinEmojiBtn
+                    key={emoji}
+                    isSelected={quickJoinEmoji === emoji}
+                    onClick={() => setQuickJoinEmoji(emoji)}
+                  >
+                    {emoji}
+                  </QuickJoinEmojiBtn>
+                ))}
+              </QuickJoinEmojiGrid>
+            </QuickJoinField>
+
+            <QuickJoinActions>
+              <QuickJoinCancelBtn onClick={() => setPendingRefcode(null)}>
+                Cancel
+              </QuickJoinCancelBtn>
+              <QuickJoinSubmitBtn onClick={handleQuickJoin} disabled={!canJoin}>
+                Join Game
+              </QuickJoinSubmitBtn>
+            </QuickJoinActions>
+          </QuickJoinCard>
+        </QuickJoinOverlay>
+      </>
+    );
+  }
 
   // ===== HERO PHASE =====
   if (phase === 'hero') {
