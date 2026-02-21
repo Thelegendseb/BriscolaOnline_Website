@@ -47,18 +47,18 @@ const GAME_MODE_OPTIONS = [
     icon: '⚔️',
   },
   {
-    mode: GameMode.TWO_VS_TWO,
-    label: '2 v 2',
-    description: 'Team-based tactical battle',
-    players: '4 players',
-    icon: '🤝',
-  },
-  {
     mode: GameMode.THREE_FOR_ALL,
     label: '3 for All',
     description: 'All players against each other',
     players: '3 players',
     icon: '👑',
+  },
+    {
+    mode: GameMode.TWO_VS_TWO,
+    label: '2 v 2',
+    description: 'Team-based tactical battle',
+    players: '4 players',
+    icon: '🤝',
   },
 ];
 
