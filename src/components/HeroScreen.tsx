@@ -42,7 +42,7 @@ const GAME_MODE_OPTIONS = [
   {
     mode: GameMode.ONE_ON_ONE,
     label: '1 v 1',
-    description: 'Head-to-head duel',
+    description: 'Head-to-head standoff duel',
     players: '2 players',
     icon: '⚔️',
   },
