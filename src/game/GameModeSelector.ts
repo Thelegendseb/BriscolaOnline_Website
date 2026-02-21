@@ -2,6 +2,7 @@ import { PlayerState } from "playroomkit";
 import { BaseGameLogic } from './BaseGameLogic';
 import { ThreeForAllGameLogic } from './modes/ThreeForAllGameLogic';
 import { OneVOneGameLogic } from './modes/OneVOneGameLogic';
+import { TwoVTwoGameLogic } from './modes/TwoVTwoGameLogic';
 
 /**
  * Game mode enumeration
@@ -89,8 +90,7 @@ export const createGameLogic = (players: PlayerState[], mode: GameMode): BaseGam
       return new OneVOneGameLogic(players);
     
     case GameMode.TWO_VS_TWO:
-      // TODO: Implement TwoVsTwoGameLogic when ready
-      throw new Error('2v2 mode not yet implemented');
+      return new TwoVTwoGameLogic(players);
     
     case GameMode.FOUR_FOR_ALL:
       // TODO: Implement FourForAllGameLogic when ready

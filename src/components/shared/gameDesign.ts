@@ -144,6 +144,16 @@ export const getPlayerEmoji = (player: PlayerState): string => {
   return player.getState?.('avatarEmoji') || '😎';
 };
 
+export const getPlayerTeam = (player: PlayerState): number | null => {
+  const team = player.getState?.('team');
+  return team ? parseInt(team, 10) : null;
+};
+
+export const TEAM_COLORS: { [team: number]: string } = {
+  1: DESIGN.colors.accents.cyan,
+  2: DESIGN.colors.accents.pink,
+};
+
 // ===== SWAP MECHANICS =====
 export const MAJOR_VALUES: CardValue[] = [
   CardValue.KING, CardValue.KNIGHT, CardValue.JACK, CardValue.ONE, CardValue.THREE

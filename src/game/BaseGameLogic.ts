@@ -19,7 +19,8 @@ export type GamePhase =
   | 'waiting'
   | 'playing'
   | 'round_complete'
-  | 'game_over';
+  | 'game_over'
+  | 'revealing_hands';
 
 export interface RoundHistoryEntry {
   roundNumber: number;
@@ -42,6 +43,11 @@ export interface GameState {
   gameWinnerId: string | null;
   lastSwapPlayerId: string | null;
   roundHistory: RoundHistoryEntry[];
+  // 2v2 team mode fields
+  teams?: { [playerId: string]: number };
+  teamScores?: { [team: string]: number };
+  turnOrder?: string[];
+  winnerTeam?: number;
 }
 
 export interface GameConfig {

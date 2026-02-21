@@ -17,7 +17,9 @@ import {
   getPlayerEmoji,
   canSwapWithTrump,
   playCardFlipSound,
+  TEAM_COLORS,
 } from '@/components/shared/gameDesign';
+import { TeammateHandReveal } from '@/components/TeammateHandReveal';
 
 // ===== STYLED COMPONENTS =====
 
@@ -130,6 +132,16 @@ const StatItem = styled.div`
     font-weight: 600;
     color: ${DESIGN.colors.accents.green};
   }
+`;
+
+const TeamIndicator = styled.span<{ team: number }>`
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: ${props => TEAM_COLORS[props.team] || DESIGN.colors.text.tertiary};
+  background: ${props => `${TEAM_COLORS[props.team] || DESIGN.colors.text.tertiary}18`};
+  padding: 1px 6px;
+  border-radius: 4px;
 `;
 
 // Center Area
@@ -546,6 +558,28 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
   const prevSwapPlayerRef = useRef(gameState.lastSwapPlayerId);
   const [showRules, setShowRules] = useState(false);
 
+  // Team mode detection
+  const teams = gameState.teams;
+  const isTeamMode = !!teams;
+  const myTeam = teams ? teams[currentPlayerId] : null;
+
+  // Reveal timer for teammate hand
+  const [revealTimeLeft, setRevealTimeLeft] = useState(5000);
+  useEffect(() => {
+    if (gameState.phase !== 'revealing_hands') return;
+    setRevealTimeLeft(5000);
+    const interval = setInterval(() => {
+      setRevealTimeLeft(prev => Math.max(0, prev - 100));
+    }, 100);
+    return () => clearInterval(interval);
+  }, [gameState.phase]);
+
+  // Find teammate
+  const teammate = isTeamMode && myTeam
+    ? players.find(p => p.id !== currentPlayerId && teams[p.id] === myTeam) || null
+    : null;
+  const teammateHand = teammate ? (gameState.playerHands[teammate.id] || []) : [];
+
   useEffect(() => {
     const newSwapper = gameState.lastSwapPlayerId;
     if (newSwapper && newSwapper !== prevSwapPlayerRef.current) {
@@ -612,22 +646,62 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
         <GameOverOverlay>
           <GameOverDialog>
             <GameOverTitle>GAME OVER</GameOverTitle>
-            <WinnerInfo>
-              <WinnerName>{getPlayerName(winnerPlayer!)}</WinnerName>
-              <WinnerScore>{scores[winner]} points</WinnerScore>
-            </WinnerInfo>
-            <ScoresGrid>
-              {[...players]
-                .sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0))
-                .map((player, index) => (
-                  <ScoreRow key={player.id} isWinner={player.id === winner}>
-                    <div>
-                      {index + 1}. {getPlayerName(player)}
-                    </div>
-                    <div>{scores[player.id] || 0}</div>
-                  </ScoreRow>
-                ))}
-            </ScoresGrid>
+            {isTeamMode && gameState.winnerTeam ? (
+              <>
+                <WinnerInfo>
+                  <WinnerName style={{ color: TEAM_COLORS[gameState.winnerTeam] }}>
+                    TEAM {gameState.winnerTeam} WINS!
+                  </WinnerName>
+                  <WinnerScore>
+                    {gameState.teamScores?.[String(gameState.winnerTeam)] || 0} points
+                  </WinnerScore>
+                </WinnerInfo>
+                <ScoresGrid>
+                  {[1, 2].map(teamNum => (
+                    <ScoreRow key={teamNum} isWinner={teamNum === gameState.winnerTeam}>
+                      <div style={{ color: TEAM_COLORS[teamNum] }}>
+                        Team {teamNum}
+                      </div>
+                      <div>{gameState.teamScores?.[String(teamNum)] || 0}</div>
+                    </ScoreRow>
+                  ))}
+                </ScoresGrid>
+                <div style={{ marginTop: DESIGN.spacing.md }}>
+                  <ScoresGrid>
+                    {[...players]
+                      .sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0))
+                      .map((player) => (
+                        <ScoreRow key={player.id} isWinner={false}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <TeamIndicator team={teams![player.id]}>T{teams![player.id]}</TeamIndicator>
+                            {getPlayerName(player)}
+                          </div>
+                          <div>{scores[player.id] || 0}</div>
+                        </ScoreRow>
+                      ))}
+                  </ScoresGrid>
+                </div>
+              </>
+            ) : (
+              <>
+                <WinnerInfo>
+                  <WinnerName>{getPlayerName(winnerPlayer!)}</WinnerName>
+                  <WinnerScore>{scores[winner]} points</WinnerScore>
+                </WinnerInfo>
+                <ScoresGrid>
+                  {[...players]
+                    .sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0))
+                    .map((player, index) => (
+                      <ScoreRow key={player.id} isWinner={player.id === winner}>
+                        <div>
+                          {index + 1}. {getPlayerName(player)}
+                        </div>
+                        <div>{scores[player.id] || 0}</div>
+                      </ScoreRow>
+                    ))}
+                </ScoresGrid>
+              </>
+            )}
             {isHostPlayer && onPlayAgain && (
               <PlayAgainButton onClick={onPlayAgain}>PLAY AGAIN</PlayAgainButton>
             )}
@@ -665,9 +739,14 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
                 </OpponentAvatar>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <OpponentName>{getPlayerName(player)}</OpponentName>
-                  {isCurrentPlayer && (
-                    <div style={{ fontSize: '11px', color: DESIGN.colors.accents.cyan, letterSpacing: '0.5px', marginTop: '4px' }}>YOU</div>
-                  )}
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '4px', alignItems: 'center' }}>
+                    {isCurrentPlayer && (
+                      <span style={{ fontSize: '11px', color: DESIGN.colors.accents.cyan, letterSpacing: '0.5px' }}>YOU</span>
+                    )}
+                    {isTeamMode && teams[player.id] && (
+                      <TeamIndicator team={teams[player.id]}>TEAM {teams[player.id]}</TeamIndicator>
+                    )}
+                  </div>
                 </div>
               </OpponentHeader>
               <OpponentStats>
@@ -833,6 +912,15 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
       </CenterArea>
 
       {showRules && <RulesPopup onClose={() => setShowRules(false)} />}
+
+      {gameState.phase === 'revealing_hands' && isTeamMode && teammate && (
+        <TeammateHandReveal
+          teammateHand={teammateHand}
+          teammate={teammate}
+          myTeam={myTeam!}
+          timeLeft={revealTimeLeft}
+        />
+      )}
     </GameContainer>
   );
 };

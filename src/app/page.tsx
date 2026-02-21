@@ -17,11 +17,12 @@ import { Card } from '@/components/Card';
 import { useNotification } from '@/components/Notification';
 import { GameState, BaseGameLogic } from '@/game/BaseGameLogic';
 import { GameMode, getGameModeConfig, createGameLogic } from '@/game/GameModeSelector';
+import { TwoVTwoGameLogic } from '@/game/modes/TwoVTwoGameLogic';
 import { detectDevice, DeviceType } from '@/utils/deviceDetection';
 import { DesktopGameUI } from '@/components/DesktopGameUI';
 import { MobileGameUI } from '@/components/MobileGameUI';
 import { HeroScreen } from '@/components/HeroScreen';
-import { DESIGN, getPlayerName, getPlayerEmoji } from '@/components/shared/gameDesign';
+import { DESIGN, getPlayerName, getPlayerEmoji, getPlayerTeam, TEAM_COLORS } from '@/components/shared/gameDesign';
 
 // ===== TYPES =====
 type AppPhase = 'hero' | 'connecting' | 'connected';
@@ -70,10 +71,11 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
     }
   }, [amHost, currentPlayer, setHostId, gameMode, setSharedMode]);
 
-  // Determine the active mode (host sets it, joiners read it)
-  const activeMode = (gameMode || sharedMode || GameMode.THREE_FOR_ALL) as GameMode;
-  const modeConfig = getGameModeConfig(activeMode);
-  const maxPlayers = modeConfig?.maxPlayers ?? 3;
+  // Determine the active mode (host sets it via gameMode prop, joiners read from sharedMode)
+  // sharedMode is synced via playroomkit multiplayer state — may take a moment for joiners
+  const activeMode = (gameMode || sharedMode || null) as GameMode | null;
+  const modeConfig = activeMode ? getGameModeConfig(activeMode) : undefined;
+  const maxPlayers = modeConfig?.maxPlayers ?? 4;
 
   // Get room code
   useEffect(() => {
@@ -141,8 +143,17 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
       gameCountRef.current += 1;
       const newState = logic.initializeGame();
       // Rotate starting player each game
-      const playerCount = Object.keys(newState.playerHands).length;
-      newState.currentTurnPlayerIndex = gameCountRef.current % playerCount;
+      const allPlayers = logic.getPlayers();
+      const playerCount = allPlayers.length;
+      const startIndex = gameCountRef.current % playerCount;
+      newState.currentTurnPlayerIndex = startIndex;
+
+      // Rebuild turn order for team modes (2v2)
+      if (newState.turnOrder && newState.teams) {
+        const startPid = allPlayers[startIndex].id;
+        newState.turnOrder = TwoVTwoGameLogic.buildTurnOrder(startPid, newState.teams, allPlayers);
+      }
+
       setGameStateRef.current(newState, true);
       return "ok";
     });
@@ -185,7 +196,7 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
       return;
     }
     try {
-      const logic = createGameLogic(players, activeMode);
+      const logic = createGameLogic(players, activeMode || GameMode.THREE_FOR_ALL);
       gameLogicRef.current = logic;
       const initialState = logic.initializeGame();
       setGameState(initialState, true);
@@ -205,6 +216,19 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
     return unsubscribe;
   }, [showNotification]);
 
+  // Handle 'revealing_hands' -> 'playing' transition (2v2 teammate hand reveal)
+  useEffect(() => {
+    if (!amHost || !gameState) return;
+    if (gameState.phase === 'revealing_hands') {
+      const timer = setTimeout(() => {
+        const latestState = gameStateRef.current;
+        if (!latestState || latestState.phase !== 'revealing_hands') return;
+        setGameStateRef.current({ ...latestState, phase: 'playing' }, true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState?.phase, amHost]);
+
   const handleCopyCode = () => {
     if (roomCode) {
       const url = `${window.location.origin}#r=${roomCode}`;
@@ -217,7 +241,21 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
 
   // ==================== LOBBY VIEW ====================
   if (!gameState) {
-    const canStart = players.length >= (modeConfig?.minPlayers ?? 2);
+    const is2v2 = activeMode === GameMode.TWO_VS_TWO;
+    const canStart = (() => {
+      if (players.length < (modeConfig?.minPlayers ?? 2)) return false;
+      if (is2v2) {
+        // Verify 2 per team
+        let t1 = 0, t2 = 0;
+        players.forEach(p => {
+          const t = getPlayerTeam(p);
+          if (t === 1) t1++;
+          else if (t === 2) t2++;
+        });
+        return t1 === 2 && t2 === 2;
+      }
+      return true;
+    })();
     const needed = maxPlayers - players.length;
 
     return (
@@ -226,7 +264,7 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
         <LobbyContainer>
           <LobbyHeader>
             <LobbyTitle>BRISCOLA</LobbyTitle>
-            <LobbySubtitle>{activeMode === GameMode.ONE_ON_ONE ? '1 v 1' : '3 for All'} • Waiting Room</LobbySubtitle>
+            <LobbySubtitle>{activeMode === GameMode.ONE_ON_ONE ? '1 v 1' : activeMode === GameMode.TWO_VS_TWO ? '2 v 2' : activeMode === GameMode.THREE_FOR_ALL ? '3 for All' : 'Loading...'} • Waiting Room</LobbySubtitle>
           </LobbyHeader>
 
           <RoomCodeCard>
@@ -260,6 +298,7 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
               const emoji = getPlayerEmoji(player);
               const isYou = player.id === currentPlayer?.id;
               const isPlayerHost = player.id === hostId;
+              const playerTeam = getPlayerTeam(player);
 
               return (
                 <PlayerRow key={player.id}>
@@ -270,6 +309,32 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
                     {name}
                     {isYou && <YouTag>YOU</YouTag>}
                   </PlayerNameText>
+                  {is2v2 && (
+                    isYou ? (
+                      <TeamToggle>
+                        <TeamButton
+                          team={1}
+                          selected={playerTeam === 1}
+                          onClick={() => currentPlayer?.setState('team', '1', true)}
+                        >
+                          T1
+                        </TeamButton>
+                        <TeamButton
+                          team={2}
+                          selected={playerTeam === 2}
+                          onClick={() => currentPlayer?.setState('team', '2', true)}
+                        >
+                          T2
+                        </TeamButton>
+                      </TeamToggle>
+                    ) : (
+                      playerTeam ? (
+                        <TeamBadge team={playerTeam}>TEAM {playerTeam}</TeamBadge>
+                      ) : (
+                        <TeamBadge team={0}>NO TEAM</TeamBadge>
+                      )
+                    )
+                  )}
                   {isPlayerHost && <HostTag>HOST</HostTag>}
                 </PlayerRow>
               );
@@ -288,7 +353,9 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
             <StartButton onClick={handleStartGame} disabled={!canStart}>
               {canStart
                 ? 'START GAME'
-                : `NEED ${needed} MORE PLAYER${needed !== 1 ? 'S' : ''}`
+                : players.length < (modeConfig?.minPlayers ?? 2)
+                  ? `NEED ${needed} MORE PLAYER${needed !== 1 ? 'S' : ''}`
+                  : 'TEAMS MUST BE 2v2'
               }
             </StartButton>
           ) : (
@@ -619,6 +686,41 @@ const HostTag = styled.span`
   letter-spacing: 0.5px;
 `;
 
+const TeamToggle = styled.div`
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+`;
+
+const TeamButton = styled.button<{ team: number; selected: boolean }>`
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1.5px solid ${props => props.selected ? TEAM_COLORS[props.team] : DESIGN.colors.bg.tertiary};
+  background: ${props => props.selected ? `${TEAM_COLORS[props.team]}20` : 'transparent'};
+  color: ${props => props.selected ? TEAM_COLORS[props.team] : DESIGN.colors.text.tertiary};
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    border-color: ${props => TEAM_COLORS[props.team]};
+    color: ${props => TEAM_COLORS[props.team]};
+  }
+`;
+
+const TeamBadge = styled.span<{ team: number }>`
+  font-size: 9px;
+  font-weight: 700;
+  color: ${props => props.team ? TEAM_COLORS[props.team] || DESIGN.colors.text.tertiary : DESIGN.colors.text.tertiary};
+  background: ${props => props.team ? `${TEAM_COLORS[props.team] || DESIGN.colors.text.tertiary}18` : `${DESIGN.colors.text.tertiary}18`};
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+`;
+
 const StartButton = styled.button`
   width: 100%;
   padding: 16px 24px;
@@ -683,9 +785,11 @@ export default function Home() {
     setConnectingText(roomCode ? 'Joining game' : 'Creating game');
     setPhase('connecting');
 
-    // Determine max players from mode (host knows), joiners default to max
+    // Determine max players from mode (host knows)
+    // Joiners should NOT pass maxPlayersPerRoom — the room's limit is set by the host at creation.
+    // Passing a lower value (e.g. 3) when joining a 4-player room causes a ROOM_LIMIT_EXCEEDED error.
     const modeConfig = mode ? getGameModeConfig(mode) : undefined;
-    const maxPlayers = modeConfig?.maxPlayers ?? 3;
+    const maxPlayers = modeConfig?.maxPlayers ?? 4;
 
     try {
       if (typeof window !== 'undefined') {
@@ -694,7 +798,7 @@ export default function Home() {
       await insertCoin({
         skipLobby: true,
         ...(roomCode ? { roomCode } : {}),
-        maxPlayersPerRoom: maxPlayers,
+        ...(!roomCode ? { maxPlayersPerRoom: maxPlayers } : {}),
       });
       setPhase('connected');
     } catch (error: any) {
