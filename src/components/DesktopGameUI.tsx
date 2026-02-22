@@ -638,27 +638,40 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
 
   if (gameState.phase === 'game_over') {
     const scores = gameState.finalScores;
-    const winner = gameState.gameWinnerId!;
-    const winnerPlayer = players.find(p => p.id === winner);
+    const winner = gameState.gameWinnerId;
+    const winnerPlayer = winner ? players.find(p => p.id === winner) : null;
+    const isDraw = !winner;
+    const isTeamDraw = isTeamMode && (!gameState.winnerTeam || gameState.winnerTeam === 0);
 
     return (
       <GameContainer>
         <GameOverOverlay>
           <GameOverDialog>
             <GameOverTitle>GAME OVER</GameOverTitle>
-            {isTeamMode && gameState.winnerTeam ? (
+            {isTeamMode ? (
               <>
                 <WinnerInfo>
-                  <WinnerName style={{ color: TEAM_COLORS[gameState.winnerTeam] }}>
-                    TEAM {gameState.winnerTeam} WINS!
-                  </WinnerName>
-                  <WinnerScore>
-                    {gameState.teamScores?.[String(gameState.winnerTeam)] || 0} points
-                  </WinnerScore>
+                  {isTeamDraw ? (
+                    <>
+                      <WinnerName style={{ color: DESIGN.colors.accents.cyan }}>IT'S A DRAW!</WinnerName>
+                      <WinnerScore>
+                        Both teams scored {gameState.teamScores?.['1'] || 0} points
+                      </WinnerScore>
+                    </>
+                  ) : (
+                    <>
+                      <WinnerName style={{ color: TEAM_COLORS[gameState.winnerTeam!] }}>
+                        TEAM {gameState.winnerTeam} WINS!
+                      </WinnerName>
+                      <WinnerScore>
+                        {gameState.teamScores?.[String(gameState.winnerTeam)] || 0} points
+                      </WinnerScore>
+                    </>
+                  )}
                 </WinnerInfo>
                 <ScoresGrid>
                   {[1, 2].map(teamNum => (
-                    <ScoreRow key={teamNum} isWinner={teamNum === gameState.winnerTeam}>
+                    <ScoreRow key={teamNum} isWinner={!isTeamDraw && teamNum === gameState.winnerTeam}>
                       <div style={{ color: TEAM_COLORS[teamNum] }}>
                         Team {teamNum}
                       </div>
@@ -682,11 +695,36 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
                   </ScoresGrid>
                 </div>
               </>
+            ) : isDraw ? (
+              <>
+                <WinnerInfo>
+                  <WinnerName style={{ color: DESIGN.colors.accents.cyan }}>IT'S A DRAW!</WinnerName>
+                  <WinnerScore>
+                    {Math.max(...Object.values(scores))} points each
+                  </WinnerScore>
+                </WinnerInfo>
+                <ScoresGrid>
+                  {[...players]
+                    .sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0))
+                    .map((player, index) => {
+                      const maxScore = Math.max(...Object.values(scores));
+                      const isTied = scores[player.id] === maxScore;
+                      return (
+                        <ScoreRow key={player.id} isWinner={isTied}>
+                          <div>
+                            {index + 1}. {getPlayerName(player)}
+                          </div>
+                          <div>{scores[player.id] || 0}</div>
+                        </ScoreRow>
+                      );
+                    })}
+                </ScoresGrid>
+              </>
             ) : (
               <>
                 <WinnerInfo>
                   <WinnerName>{getPlayerName(winnerPlayer!)}</WinnerName>
-                  <WinnerScore>{scores[winner]} points</WinnerScore>
+                  <WinnerScore>{scores[winner!]} points</WinnerScore>
                 </WinnerInfo>
                 <ScoresGrid>
                   {[...players]

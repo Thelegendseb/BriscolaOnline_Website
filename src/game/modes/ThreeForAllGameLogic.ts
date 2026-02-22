@@ -144,9 +144,9 @@ export class ThreeForAllGameLogic extends BaseGameLogic {
       Object.keys(newStacks).forEach(pid => {
         scores[pid] = newStacks[pid].reduce((total, card) => total + card.score, 0);
       });
-      const gameWinner = Object.keys(scores).reduce((a, b) =>
-        scores[a] > scores[b] ? a : b
-      );
+      const maxScore = Math.max(...Object.values(scores));
+      const topPlayers = Object.keys(scores).filter(pid => scores[pid] === maxScore);
+      const gameWinner = topPlayers.length === 1 ? topPlayers[0] : null;
 
       this.state = {
         ...this.state,

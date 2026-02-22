@@ -3,6 +3,7 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import { DESIGN } from '@/components/shared/gameDesign';
+import { CardValue, Suit, CARD_SCORES, CARD_NAMES } from '@/components/Card';
 
 // ===== ANIMATIONS =====
 const fadeIn = keyframes`
@@ -126,20 +127,72 @@ const Highlight = styled.span`
   font-weight: 600;
 `;
 
-const ScoreTable = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  margin: 8px 0;
-  font-size: 13px;
-`;
-
 const ScoreCell = styled.div<{ header?: boolean }>`
   padding: 4px 8px;
   background: ${p => p.header ? DESIGN.colors.surfaces.elevated : 'transparent'};
   color: ${p => p.header ? DESIGN.colors.text.primary : DESIGN.colors.text.secondary};
   font-weight: ${p => p.header ? '600' : '400'};
   border-radius: 4px;
+`;
+
+const CardShowcase = styled.div`
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin: 12px 0;
+`;
+
+const CardImage = styled.img`
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  border: 1px solid ${DESIGN.colors.surfaces.elevated};
+`;
+
+const CardLabel = styled.div`
+  text-align: center;
+  font-size: 12px;
+  color: ${DESIGN.colors.text.secondary};
+  margin-top: 4px;
+`;
+
+const CardRow = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+  padding: 8px;
+  background: ${DESIGN.colors.surfaces.elevated};
+  border-radius: 6px;
+  flex-wrap: wrap;
+`;
+
+const CardImageSmall = styled.img`
+  width: 36px;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+`;
+
+const CardInfo = styled.div`
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-left: auto;
+`;
+
+const CardName = styled.span`
+  color: ${DESIGN.colors.text.primary};
+  font-weight: 600;
+`;
+
+const CardScore = styled.span`
+  color: ${DESIGN.colors.accents.green};
+  font-weight: 700;
+  font-size: 15px;
 `;
 
 // ===== TRIGGER BUTTON (for inline use) =====
@@ -190,13 +243,45 @@ export const RulesPopup: React.FC<RulesPopupProps> = ({ onClose }) => {
             <SectionTitle>Overview</SectionTitle>
             Briscola is a classic Italian trick-taking card game. Win by earning the most
             points from captured cards. The game uses a <Highlight>40-card Italian deck</Highlight> with
-            four suits: Coins, Cups, Swords, and Clubs.
+            four suits:
+            <CardShowcase>
+              <div>
+                <CardImage src="/assets/cards/coin/coin_1.png" alt="Coins" />
+                <CardLabel>Coins</CardLabel>
+              </div>
+              <div>
+                <CardImage src="/assets/cards/cup/cup_1.png" alt="Cups" />
+                <CardLabel>Cups</CardLabel>
+              </div>
+              <div>
+                <CardImage src="/assets/cards/sword/sword_1.png" alt="Swords" />
+                <CardLabel>Swords</CardLabel>
+              </div>
+              <div>
+                <CardImage src="/assets/cards/club/club_1.png" alt="Clubs" />
+                <CardLabel>Clubs</CardLabel>
+              </div>
+            </CardShowcase>
           </Section>
 
           <Section>
             <SectionTitle>Setup</SectionTitle>
             Each player is dealt <Highlight>3 cards</Highlight>. One card is placed face-up to
             determine the <Highlight>trump suit (Briscola)</Highlight>. The remaining cards form the draw pile.
+            <div style={{ marginTop: '10px', fontSize: '12px', color: DESIGN.colors.text.tertiary }}>
+              Example hand (3 cards):
+            </div>
+            <CardShowcase>
+              <div>
+                <CardImage src="/assets/cards/coin/coin_5.png" alt="Card 1" />
+              </div>
+              <div>
+                <CardImage src="/assets/cards/cup/cup_knight.png" alt="Card 2" />
+              </div>
+              <div>
+                <CardImage src="/assets/cards/sword/sword_3.png" alt="Card 3" />
+              </div>
+            </CardShowcase>
           </Section>
 
           <Section>
@@ -217,6 +302,31 @@ export const RulesPopup: React.FC<RulesPopupProps> = ({ onClose }) => {
               <li>If multiple trumps are played, the highest-value trump wins.</li>
               <li>If no trumps are played, the highest card of the <Highlight>leading suit</Highlight> (first card played) wins.</li>
             </List>
+            <div style={{ marginTop: '10px', fontSize: '12px', color: DESIGN.colors.text.tertiary }}>
+              Card order (highest to lowest):
+            </div>
+            <CardShowcase>
+              <div>
+                <CardImage src="/assets/cards/coin/coin_1.png" alt="Ace" />
+                <CardLabel>Ace</CardLabel>
+              </div>
+              <div>
+                <CardImage src="/assets/cards/coin/coin_3.png" alt="Three" />
+                <CardLabel>Three</CardLabel>
+              </div>
+              <div>
+                <CardImage src="/assets/cards/coin/coin_king.png" alt="King" />
+                <CardLabel>King</CardLabel>
+              </div>
+              <div>
+                <CardImage src="/assets/cards/coin/coin_knight.png" alt="Knight" />
+                <CardLabel>Knight</CardLabel>
+              </div>
+              <div>
+                <CardImage src="/assets/cards/coin/coin_jack.png" alt="Jack" />
+                <CardLabel>Jack</CardLabel>
+              </div>
+            </CardShowcase>
           </Section>
 
           <Section>
@@ -227,23 +337,70 @@ export const RulesPopup: React.FC<RulesPopupProps> = ({ onClose }) => {
 
           <Section>
             <SectionTitle>Card Points</SectionTitle>
-            <ScoreTable>
-              <ScoreCell header>Card</ScoreCell>
-              <ScoreCell header>Points</ScoreCell>
-              <ScoreCell>Ace (1)</ScoreCell>
-              <ScoreCell>11</ScoreCell>
-              <ScoreCell>Three (3)</ScoreCell>
-              <ScoreCell>10</ScoreCell>
-              <ScoreCell>King (10)</ScoreCell>
-              <ScoreCell>4</ScoreCell>
-              <ScoreCell>Knight (9)</ScoreCell>
-              <ScoreCell>3</ScoreCell>
-              <ScoreCell>Jack (8)</ScoreCell>
-              <ScoreCell>2</ScoreCell>
-              <ScoreCell>Others (2–7)</ScoreCell>
-              <ScoreCell>0</ScoreCell>
-            </ScoreTable>
-            Total points in the deck: <Highlight>120</Highlight>. The player with the most points wins.
+            Only certain cards score points. Here's what each card is worth:
+            <CardRow>
+              <CardImageSmall src="/assets/cards/coin/coin_1.png" alt="Ace Coins" />
+              <CardImageSmall src="/assets/cards/cup/cup_1.png" alt="Ace Cups" />
+              <CardImageSmall src="/assets/cards/sword/sword_1.png" alt="Ace Swords" />
+              <CardImageSmall src="/assets/cards/club/club_1.png" alt="Ace Clubs" />
+              <CardInfo>
+                <CardName>Ace (1)</CardName>
+                <CardScore>11 pts</CardScore>
+              </CardInfo>
+            </CardRow>
+            <CardRow>
+              <CardImageSmall src="/assets/cards/coin/coin_3.png" alt="Three Coins" />
+              <CardImageSmall src="/assets/cards/cup/cup_3.png" alt="Three Cups" />
+              <CardImageSmall src="/assets/cards/sword/sword_3.png" alt="Three Swords" />
+              <CardImageSmall src="/assets/cards/club/club_3.png" alt="Three Clubs" />
+              <CardInfo>
+                <CardName>Three (3)</CardName>
+                <CardScore>10 pts</CardScore>
+              </CardInfo>
+            </CardRow>
+            <CardRow>
+              <CardImageSmall src="/assets/cards/coin/coin_king.png" alt="King Coins" />
+              <CardImageSmall src="/assets/cards/cup/cup_king.png" alt="King Cups" />
+              <CardImageSmall src="/assets/cards/sword/sword_king.png" alt="King Swords" />
+              <CardImageSmall src="/assets/cards/club/club_king.png" alt="King Clubs" />
+              <CardInfo>
+                <CardName>King (10)</CardName>
+                <CardScore>4 pts</CardScore>
+              </CardInfo>
+            </CardRow>
+            <CardRow>
+              <CardImageSmall src="/assets/cards/coin/coin_knight.png" alt="Knight Coins" />
+              <CardImageSmall src="/assets/cards/cup/cup_knight.png" alt="Knight Cups" />
+              <CardImageSmall src="/assets/cards/sword/sword_knight.png" alt="Knight Swords" />
+              <CardImageSmall src="/assets/cards/club/club_knight.png" alt="Knight Clubs" />
+              <CardInfo>
+                <CardName>Knight (9)</CardName>
+                <CardScore>3 pts</CardScore>
+              </CardInfo>
+            </CardRow>
+            <CardRow>
+              <CardImageSmall src="/assets/cards/coin/coin_jack.png" alt="Jack Coins" />
+              <CardImageSmall src="/assets/cards/cup/cup_jack.png" alt="Jack Cups" />
+              <CardImageSmall src="/assets/cards/sword/sword_jack.png" alt="Jack Swords" />
+              <CardImageSmall src="/assets/cards/club/club_jack.png" alt="Jack Clubs" />
+              <CardInfo>
+                <CardName>Jack (8)</CardName>
+                <CardScore>2 pts</CardScore>
+              </CardInfo>
+            </CardRow>
+            <CardRow>
+              <CardImageSmall src="/assets/cards/coin/coin_2.png" alt="Two Coins" />
+              <CardImageSmall src="/assets/cards/cup/cup_2.png" alt="Two Cups" />
+              <CardImageSmall src="/assets/cards/sword/sword_2.png" alt="Two Swords" />
+              <CardImageSmall src="/assets/cards/club/club_2.png" alt="Two Clubs" />
+              <CardInfo>
+                <CardName>Two through Seven</CardName>
+                <CardScore>0 pts</CardScore>
+              </CardInfo>
+            </CardRow>
+            <div style={{ marginTop: '8px', color: DESIGN.colors.accents.green, fontWeight: '600' }}>
+              Total points: <Highlight>120</Highlight>
+            </div>
           </Section>
         </Content>
       </Dialog>

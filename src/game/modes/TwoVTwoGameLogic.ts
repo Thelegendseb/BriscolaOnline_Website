@@ -263,12 +263,13 @@ export class TwoVTwoGameLogic extends BaseGameLogic {
         teamScores[String(team)] += scores[pid];
       });
 
-      // Determine winning team
-      const winnerTeam = teamScores['1'] >= teamScores['2'] ? 1 : 2;
+      // Determine winning team (0 = draw)
+      const winnerTeam = teamScores['1'] === teamScores['2'] ? 0
+        : teamScores['1'] > teamScores['2'] ? 1 : 2;
 
-      // gameWinnerId = first player of winning team (for display compatibility)
-      const winnerTeamPlayers = this.players.filter(p => teams[p.id] === winnerTeam);
-      const gameWinner = winnerTeamPlayers[0]?.id || Object.keys(scores)[0];
+      // gameWinnerId = first player of winning team (null on draw)
+      const winnerTeamPlayers = winnerTeam ? this.players.filter(p => teams[p.id] === winnerTeam) : [];
+      const gameWinner = winnerTeamPlayers[0]?.id || null;
 
       this.state = {
         ...this.state,
