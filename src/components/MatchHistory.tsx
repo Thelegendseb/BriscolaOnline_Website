@@ -40,6 +40,7 @@ const ToggleButton = styled.button`
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: all 150ms;
+  width: 100%;
 
   &:hover {
     color: ${DESIGN.colors.text.primary};

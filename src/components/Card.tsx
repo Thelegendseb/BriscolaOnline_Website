@@ -133,7 +133,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   mobileBreakpoint = '768px'
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; width: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -141,7 +141,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     if (!card || isBack) return;
     if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
-      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top });
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top, width: rect.width });
     }
     setShowTooltip(true);
   }, [card, isBack]);
@@ -162,13 +162,23 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   }, [showTooltip, openTooltip, closeTooltip]);
 
   // Long-press to show tooltip (mobile)
-  const handleTouchStart = useCallback(() => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     longPressTimerRef.current = setTimeout(() => {
+      // Prevent any native callout that might still fire
+      e.preventDefault();
       openTooltip();
-    }, 1000);
+    }, 400);
   }, [openTooltip]);
 
   const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    // Cancel long-press if finger moves (user is scrolling, not pressing)
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -210,6 +220,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
       onTouchCancel={handleTouchEnd}
     >
       {showAvatar && avatarSrc && (
@@ -218,19 +229,25 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         </CardAvatar>
       )}
       {isBack ? (
-        <CardImage src="/assets/cards/back.png" alt="Card back" />
+        <CardImage src="/assets/cards/back.png" alt="Card back" draggable={false} />
       ) : card ? (
         <>
-          <CardImage src={card.imagePath} alt={card.name} />
+          <CardImage src={card.imagePath} alt={card.name} draggable={false} />
           {showTooltip && tooltipPos && typeof document !== 'undefined' && ReactDOM.createPortal(
             <FloatingTooltip
               $colors={colors}
+              $maxWidth={tooltipPos.width}
               style={{ left: tooltipPos.x, top: tooltipPos.y }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <TooltipTitle>{card.name}</TooltipTitle>
-              <TooltipScore>Score: {card.score} points</TooltipScore>
-              <TooltipSuit>Suit: {card.suit.charAt(0).toUpperCase() + card.suit.slice(1)}s</TooltipSuit>
+              <TooltipRow>
+                <TooltipName $colors={colors}>{card.name}</TooltipName>
+              </TooltipRow>
+              <TooltipDivider $colors={colors} />
+              <TooltipRow>
+                <TooltipLabel $colors={colors}>Points</TooltipLabel>
+                <TooltipValue $colors={colors}>{card.score}</TooltipValue>
+              </TooltipRow>
             </FloatingTooltip>,
             document.body
           )}
@@ -308,6 +325,11 @@ const CardImage = styled.img`
   height: 100%;
   object-fit: contain;
   border-radius: 0.4rem;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
 `;
 
 const CardPlaceholder = styled.div<{ $colors: CardComponentProps['colors']; $size: 'large' | 'normal' | 'small' | 'tiny' }>`
@@ -366,21 +388,23 @@ const CardAvatar = styled.div<{ $mobileBreakpoint: string; $size: 'large' | 'nor
   }
 `;
 
-const FloatingTooltip = styled.div<{ $colors: CardComponentProps['colors'] }>`
+const FloatingTooltip = styled.div<{ $colors: CardComponentProps['colors']; $maxWidth: number }>`
   position: fixed;
-  transform: translate(-50%, -100%) translateY(-12px);
-  background: ${props => props.$colors.surface};
-  color: ${props => props.$colors.text};
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.8rem;
-  white-space: nowrap;
+  transform: translate(-50%, -100%) translateY(-10px);
+  background: #1f1f1f;
+  color: #ffffff;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11px;
   z-index: 10000;
-  border: 2px solid ${props => props.$colors.primary};
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid #2a2a2a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   pointer-events: none;
   opacity: 0;
-  animation: floatingTooltipIn 0.2s ease forwards;
+  animation: floatingTooltipIn 0.15s ease forwards;
+  width: ${props => props.$maxWidth}px;
+  max-width: ${props => props.$maxWidth}px;
+  box-sizing: border-box;
 
   &::after {
     content: '';
@@ -388,34 +412,58 @@ const FloatingTooltip = styled.div<{ $colors: CardComponentProps['colors'] }>`
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-top-color: ${props => props.$colors.surface};
+    border: 5px solid transparent;
+    border-top-color: #1f1f1f;
   }
 
   @keyframes floatingTooltipIn {
     from {
       opacity: 0;
-      transform: translate(-50%, -100%) translateY(-17px);
+      transform: translate(-50%, -100%) translateY(-15px);
     }
     to {
       opacity: 1;
-      transform: translate(-50%, -100%) translateY(-12px);
+      transform: translate(-50%, -100%) translateY(-10px);
     }
   }
 `;
 
-const TooltipTitle = styled.div`
-  font-weight: bold;
-  margin-bottom: 0.25rem;
+const TooltipRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
 `;
 
-const TooltipScore = styled.div`
-  color: #FFD700;
+const TooltipName = styled.div<{ $colors: CardComponentProps['colors'] }>`
   font-weight: 600;
-  margin-bottom: 0.1rem;
+  font-size: 11px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.3px;
 `;
 
-const TooltipSuit = styled.div`
-  color: #87CEEB;
-  font-size: 0.9em;
+const TooltipDivider = styled.div<{ $colors: CardComponentProps['colors'] }>`
+  height: 1px;
+  background: #2a2a2a;
+  margin: 5px 0;
+`;
+
+const TooltipLabel = styled.span<{ $colors: CardComponentProps['colors'] }>`
+  font-size: 10px;
+  color: #606060;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+`;
+
+const TooltipValue = styled.span<{ $colors: CardComponentProps['colors'] }>`
+  font-size: 12px;
+  font-weight: 700;
+  color: #00ff88;
+  font-family: 'SF Mono', Monaco, monospace;
 `;

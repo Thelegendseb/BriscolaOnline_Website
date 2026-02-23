@@ -514,6 +514,7 @@ const PlayAgainButton = styled.button`
   font-weight: 700;
   letter-spacing: 1px;
   cursor: pointer;
+  width: 100%;
   transition: transform 150ms ease-out, box-shadow 150ms ease-out;
 
   &:hover {

@@ -12,18 +12,18 @@ export const AVATAR_EMOJIS = [
   '😈',
   '😏',
   '😎',
-  '🤨',
+  '🤖',
   '😒',
-  '🙄',
+  '🤪',
   '😤',
-  '🤬',
+  '💩',
   '😡',
   '🤡',
   '👿',
   '🧐',
   '🤓',
   '🥶',
-  '😵‍💫',
+  '🤢',
   '🫠',
 ];
 
@@ -82,6 +82,11 @@ const contentFadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
+const shimmer = keyframes`
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+`;
+
 const errorSlideIn = keyframes`
   from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -116,6 +121,19 @@ const Title = styled.h1`
   margin: 0;
   letter-spacing: 8px;
   line-height: 1;
+  background: linear-gradient(
+    90deg,
+    ${DESIGN.colors.text.primary} 0%,
+    ${DESIGN.colors.text.primary} 40%,
+    ${DESIGN.colors.accents.green} 50%,
+    ${DESIGN.colors.text.primary} 60%,
+    ${DESIGN.colors.text.primary} 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: ${shimmer} 6s linear infinite;
 `;
 
 const Subtitle = styled.p`
@@ -139,30 +157,61 @@ const VersionBadge = styled.span`
 
 const CardFanContainer = styled.div`
   position: relative;
-  width: clamp(180px, 45vw, 320px);
-  height: clamp(80px, 15vh, 180px);
+  width: clamp(220px, 55vw, 380px);
+  height: clamp(100px, 18vh, 200px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   flex-shrink: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -20px;
+    background: radial-gradient(
+      ellipse at center bottom,
+      ${DESIGN.colors.accents.green}10 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
 `;
 
 const FanCard = styled.div`
   position: absolute;
   bottom: 0;
-  width: clamp(50px, 10vw, 100px);
-  height: clamp(75px, 14vh, 160px);
+  width: clamp(55px, 11vw, 100px);
+  aspect-ratio: 0.62;
   transform-origin: bottom center;
-  border: 3px solid ${DESIGN.colors.bg.tertiary};
-  border-radius: 12px;
+  border: 2px solid ${DESIGN.colors.bg.tertiary};
+  border-radius: clamp(6px, 1vw, 12px);
+  overflow: hidden;
+  background: ${DESIGN.colors.surfaces.cards};
+  z-index: 1;
 
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    border-radius: clamp(4px, 0.8vw, 8px);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    object-fit: contain;
+    display: block;
+    -webkit-user-drag: none;
+    user-select: none;
   }
+`;
+
+const Divider = styled.div`
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    ${DESIGN.colors.bg.tertiary},
+    ${DESIGN.colors.accents.green}40,
+    ${DESIGN.colors.bg.tertiary},
+    transparent
+  );
+  flex-shrink: 0;
 `;
 
 const FormSection = styled.div`
@@ -464,6 +513,8 @@ export const HeroScreen: React.FC<HeroScreenProps> = ({
           </FanCard>
         ))}
       </CardFanContainer>
+
+      <Divider />
 
       <FormSection onKeyDown={handleKeyDown}>
         <InputLabel>Your Name</InputLabel>
