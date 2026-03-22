@@ -3,6 +3,7 @@ import styled, { css } from 'styled-components';
 import { CardComponent } from '@/components/Card';
 import { MatchHistoryButton } from '@/components/MatchHistory';
 import { RulesPopup, RulesIcon } from '@/components/RulesPopup';
+import { QuickChatPopup, QuickChatBubble, QuickChatIcon } from '@/components/QuickChat';
 import {
   DESIGN,
   borderGlow,
@@ -498,6 +499,8 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
   onSwapTrump,
   onPlayAgain,
   isHost: isHostPlayer,
+  onQuickChat,
+  quickChatMessage,
 }) => {
   const playedCards = gameState.playedCards;
   const currentTurnIndex = gameState.currentTurnPlayerIndex;
@@ -518,8 +521,7 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
   const [swapNotification, setSwapNotification] = useState<string | null>(null);
   const prevSwapPlayerRef = useRef(gameState.lastSwapPlayerId);
   const [showRules, setShowRules] = useState(false);
-
-  // Team mode detection
+  const [showQuickChat, setShowQuickChat] = useState(false);
   const teams = gameState.teams;
   const isTeamMode = !!teams;
   const myTeam = teams ? teams[currentPlayerId] : null;
@@ -733,6 +735,9 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
             <RulesIconButton onClick={() => setShowRules(true)} title="How to Play">
               <RulesIcon />
             </RulesIconButton>
+            <RulesIconButton onClick={() => setShowQuickChat(true)} title="Quick Chat">
+              <QuickChatIcon />
+            </RulesIconButton>
           </div>
         </div>
         <TopBarRight>
@@ -853,6 +858,21 @@ export const MobileGameUI: React.FC<GameUIProps> = ({
       </BottomArea>
 
       {showRules && <RulesPopup onClose={() => setShowRules(false)} />}
+
+      {showQuickChat && onQuickChat && (
+        <QuickChatPopup
+          onClose={() => setShowQuickChat(false)}
+          onSend={onQuickChat}
+        />
+      )}
+
+      {quickChatMessage && quickChatMessage.ts > 0 && (
+        <QuickChatBubble
+          message={quickChatMessage}
+          players={players}
+          currentPlayerId={currentPlayerId}
+        />
+      )}
 
       {gameState.phase === 'revealing_hands' && isTeamMode && teammate && (
         <TeammateHandReveal

@@ -33,6 +33,7 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
   const [gameState, setGameState] = useMultiplayerState<GameState | null>("game", null);
   const [hostId, setHostId] = useMultiplayerState<string | null>("hostId", null);
   const [sharedMode, setSharedMode] = useMultiplayerState<string | null>("gameMode", null);
+  const [quickChat, setQuickChat] = useMultiplayerState<{ senderId: string; message: string; ts: number } | null>("quickChat", null);
   const [deviceType, setDeviceType] = useState<DeviceType>('desktop');
   const { notification, showNotification } = useNotification();
   const currentPlayer = myPlayer();
@@ -188,6 +189,11 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
     if (!amHost) return;
     RPC.call('playAgain', {}, RPC.Mode.HOST);
   }, [amHost]);
+
+  const handleQuickChat = useCallback((message: string) => {
+    if (!currentPlayer) return;
+    setQuickChat({ senderId: currentPlayer.id, message, ts: Date.now() }, true);
+  }, [currentPlayer, setQuickChat]);
 
   // Host starts game manually from lobby
   const handleStartGame = useCallback(() => {
@@ -392,6 +398,8 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
       onSwapTrump={handleSwapTrump}
       onPlayAgain={handlePlayAgain}
       isHost={amHost}
+      onQuickChat={handleQuickChat}
+      quickChatMessage={quickChat}
     />
   ) : (
     <MobileGameUI
@@ -402,6 +410,8 @@ const ConnectedApp: React.FC<{ username: string; avatarEmoji: string; gameMode?:
       onSwapTrump={handleSwapTrump}
       onPlayAgain={handlePlayAgain}
       isHost={amHost}
+      onQuickChat={handleQuickChat}
+      quickChatMessage={quickChat}
     />
   );
 

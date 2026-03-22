@@ -102,6 +102,7 @@ export const cardColors = {
 import { GameState } from '@/game/BaseGameLogic';
 import { PlayerState } from 'playroomkit';
 import { Card as CardType, CardValue } from '@/components/Card';
+import { QuickChatMessage } from '@/components/QuickChat';
 
 export interface GameUIProps {
   gameState: GameState;
@@ -111,6 +112,8 @@ export interface GameUIProps {
   onSwapTrump: (card: CardType) => void;
   onPlayAgain?: () => void;
   isHost?: boolean;
+  onQuickChat?: (message: string) => void;
+  quickChatMessage?: QuickChatMessage | null;
 }
 
 // ===== SHARED HELPER FUNCTIONS =====
