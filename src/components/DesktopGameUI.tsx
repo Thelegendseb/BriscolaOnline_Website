@@ -4,6 +4,7 @@ import { CardComponent } from '@/components/Card';
 import { MatchHistoryButton } from '@/components/MatchHistory';
 import { RulesPopup, RulesIcon } from '@/components/RulesPopup';
 import { QuickChatPopup, QuickChatBubble, QuickChatIcon } from '@/components/QuickChat';
+import { Wifi, WifiOff } from 'lucide-react';
 import packageJson from '../../package.json';
 import {
   DESIGN,
@@ -562,6 +563,18 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
   const prevSwapPlayerRef = useRef(gameState.lastSwapPlayerId);
   const [showRules, setShowRules] = useState(false);
   const [showQuickChat, setShowQuickChat] = useState(false);
+
+  // Online status
+  const [isOnline, setIsOnline] = useState(true);
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
+  }, []);
+
   const teams = gameState.teams;
   const isTeamMode = !!teams;
   const myTeam = teams ? teams[currentPlayerId] : null;
@@ -819,6 +832,10 @@ export const DesktopGameUI: React.FC<GameUIProps> = ({
             <RulesIconButton onClick={() => setShowQuickChat(true)} title="Quick Chat">
               <QuickChatIcon />
             </RulesIconButton>
+            {isOnline
+              ? <Wifi size={14} color={DESIGN.colors.accents.green} strokeWidth={2} />
+              : <WifiOff size={14} color={DESIGN.colors.accents.pink} strokeWidth={2} />
+            }
           </div>
         </GameHeader>
 

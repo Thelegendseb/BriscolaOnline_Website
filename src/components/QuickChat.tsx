@@ -9,16 +9,10 @@ import { PlayerState } from 'playroomkit';
 export const QUICK_MESSAGES = [
   { emoji: '👋', text: 'Hello!' },
   { emoji: '👍', text: 'Nice play!' },
-  { emoji: '👏', text: 'Well done!' },
-  { emoji: '😮', text: 'Wow!' },
-  { emoji: '😂', text: 'Haha!' },
+  { emoji: '😲', text: 'Wow!' },
   { emoji: '🔥', text: "Let's go!" },
-  { emoji: '⏰', text: 'Hurry up!' },
-  { emoji: '🍀', text: 'Good luck!' },
   { emoji: '😅', text: 'Oops...' },
   { emoji: '🤝', text: 'Good game!' },
-  { emoji: '😎', text: 'Easy!' },
-  { emoji: '👀', text: 'Interesting...' },
 ];
 
 // ===== TYPES =====
@@ -152,6 +146,59 @@ const MessageButton = styled.button`
   }
 `;
 
+const CustomInputRow = styled.form`
+  display: flex;
+  gap: 8px;
+  padding: 0 18px 14px;
+`;
+
+const CustomInput = styled.input`
+  flex: 1;
+  padding: 9px 12px;
+  background: ${DESIGN.colors.surfaces.elevated};
+  border: 1px solid ${DESIGN.colors.bg.tertiary};
+  border-radius: ${DESIGN.radius.buttons};
+  color: ${DESIGN.colors.text.primary};
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 150ms;
+
+  &::placeholder {
+    color: ${DESIGN.colors.text.tertiary};
+  }
+
+  &:focus {
+    border-color: ${DESIGN.colors.accents.cyan};
+  }
+`;
+
+const SendButton = styled.button`
+  padding: 9px 14px;
+  background: ${DESIGN.colors.accents.cyan};
+  border: none;
+  border-radius: ${DESIGN.radius.buttons};
+  color: ${DESIGN.colors.bg.primary};
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms;
+  white-space: nowrap;
+
+  &:hover {
+    opacity: 0.85;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
 // ===== BUBBLE STYLED COMPONENTS =====
 const BubbleContainer = styled.div<{ $isLeaving: boolean }>`
   position: fixed;
@@ -207,9 +254,19 @@ interface QuickChatPopupProps {
 }
 
 export const QuickChatPopup: React.FC<QuickChatPopupProps> = ({ onClose, onSend }) => {
+  const [customMsg, setCustomMsg] = useState('');
+  const MAX_LENGTH = 30;
+
   const handleSend = (msg: string) => {
     onSend(msg);
     onClose();
+  };
+
+  const handleCustomSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = customMsg.trim();
+    if (!trimmed) return;
+    handleSend(trimmed);
   };
 
   return (
@@ -227,6 +284,18 @@ export const QuickChatPopup: React.FC<QuickChatPopupProps> = ({ onClose, onSend 
             </MessageButton>
           ))}
         </MessagesGrid>
+        <CustomInputRow onSubmit={handleCustomSend}>
+          <CustomInput
+            value={customMsg}
+            onChange={e => setCustomMsg(e.target.value.slice(0, MAX_LENGTH))}
+            placeholder="Type a message..."
+            maxLength={MAX_LENGTH}
+            autoFocus
+          />
+          <SendButton type="submit" disabled={!customMsg.trim()}>
+            Send
+          </SendButton>
+        </CustomInputRow>
       </Dialog>
     </Overlay>
   );

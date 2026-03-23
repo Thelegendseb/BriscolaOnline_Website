@@ -202,14 +202,32 @@ export const swapGlow = keyframes`
 `;
 
 // ===== SOUND EFFECTS =====
+import { Howl } from 'howler';
+
+let cardFlipHowl: Howl | null = null;
+
+const getCardFlipHowl = (): Howl => {
+  if (!cardFlipHowl) {
+    cardFlipHowl = new Howl({
+      src: ['/assets/sounds/card_flip.mp3'],
+      volume: 0.5,
+      preload: true,
+      html5: false, // Use Web Audio API for overlapping + no music interruption
+    });
+  }
+  return cardFlipHowl;
+};
+
 /**
- * Play the card flip sound. Creates a new Audio instance each time
- * so sounds can stack/overlap when multiple cards are played quickly.
+ * Play the card flip sound with slight random variation in rate (pitch+speed).
+ * Uses Howler.js so sounds can overlap reliably and don't interrupt background music.
  */
 export const playCardFlipSound = (): void => {
   try {
-    const audio = new Audio('/assets/sounds/card_flip.mp3');
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
+    const howl = getCardFlipHowl();
+    const id = howl.play();
+    // Slight random rate variation: 0.94 to 1.06
+    const rate = 0.94 + Math.random() * 0.12;
+    howl.rate(rate, id);
   } catch {}
 };
